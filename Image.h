@@ -14,8 +14,10 @@ public:
     ~Image();
     void load(std::string image_path);
     void init(float alpha, float gamma, float trunc_col, float trunc_grad);
-    static cv::Vec3f get_pixel_billinear(cv::Mat& mat, float x, float y);
+	void match();
+	void spatial_match();
 
+    static cv::Vec3f get_pixel_billinear(cv::Mat& mat, float x, float y);
     static float l1_norm(cv::Vec3f v1, cv::Vec3f v2);
 
     cv::Mat image_mat_, plane_mat_, grad_mat_;

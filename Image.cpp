@@ -2,7 +2,7 @@
 // Created by henry on 18-2-1.
 //
 
-#include "Image.h"
+#include "image.h"
 
 using namespace cv;
 
@@ -55,6 +55,54 @@ void Image::init(float alpha, float gamma, float trunc_col, float trunc_grad)
                     = image_mat_.at<Vec3f>(i - 1, j) + image_mat_.at<Vec3f>(i, j - 1) - 2 * image_mat_.at<Vec3f>(i, j);
         }
     }
+}
+
+void Image::match()
+{
+	if (nullptr == match_image)
+	{
+		return;
+	}
+
+	spatial_match();
+}
+
+void Image::spatial_match()
+{
+	if(nullptr == match_image)
+	{
+		return;
+	}
+
+	for (int i = 0; i < cols_; ++i)
+	{
+		for (int j = 0; j < rows_; ++j)
+		{
+			//upper pixel
+			Vec3f& plane_center = plane_mat_.at<Vec3f>(i, j);
+			for (int dy = -neighbor_radius_; dy < 0; ++dy)
+			{
+				if (i + dy < 0)
+				{
+					continue;
+				}
+
+				for (int dx = -neighbor_radius_; dx <= neighbor_radius_; ++dx)
+				{
+					if (j + dx < 0 || j + dx >= cols_)
+					{
+						continue;
+					}
+
+					Vec3f& plane_comp = plane_mat_.at<Vec3f>(i + dy, j + dx);
+					if (aggregated_cost(i, j, plane_center) > aggregated_cost(i, j, plane_comp))
+					{
+						plane_center = plane_comp;
+					}
+				}
+			}
+		}
+	}
 }
 
 float Image::aggregated_cost(int row, int col, Vec3f& plane)
