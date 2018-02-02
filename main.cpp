@@ -7,7 +7,7 @@ using namespace cv;
 float aggregated_cost(int rows, int cols, Vec3f& plane, int& window_radius,
                       float& gamma, float& alpha, float& trunc_col, float& trunc_grad)
 {
-
+	return 0.0f;
 }
 
 
@@ -21,7 +21,7 @@ int main() {
     Mat depthMap = Mat::zeros(rows, cols, CV_32FC3);
 
     //step1: random initialization
-    srand (time(NULL));
+    srand ((unsigned int)time(NULL));
     for (int i = 0; i < rows; ++i) {
         for (int j = 0; j < cols; ++j) {
             int rand_depth = rand() % (max_disparity + 1);

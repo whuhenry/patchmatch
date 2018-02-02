@@ -70,7 +70,7 @@ float Image::aggregated_cost(int row, int col, Vec3f& plane)
             Vec3f& Ip = image_mat_.at<Vec3f>(row, col);
             Vec3f& Iq = image_mat_.at<Vec3f>(row + dy, col + dx);
             Vec3f& Gq = grad_mat_.at<Vec3f>(row + dy, col + dx);
-            float l1_norm0;
+            float l1_norm0 = 0.0f;
             for (int i = 0; i < 3; ++i) {
                 l1_norm0 += abs(Ip[i] - Iq[i]);
             }
@@ -93,6 +93,8 @@ float Image::aggregated_cost(int row, int col, Vec3f& plane)
             }
         }
     }
+
+	return cost;
 }
 
 cv::Vec3f Image::get_pixel_billinear(Mat& mat, float x, float y)
