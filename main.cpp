@@ -1,22 +1,27 @@
 #include <iostream>
-#include <random>
-#include <opencv2/opencv.hpp>
+#include <memory>
+#include <ctime>
+
+#include "image.h"
+#include "PatchMatchAlg.h"
 
 using namespace cv;
 
 int main(int argc, char* argv[]) {
 
+	auto imgL = std::make_shared<Image>();
+	auto imgR = std::make_shared<Image>();
 #ifdef _WIN64
-	Mat imgL = imread("F:\\Data\\Benchmark\\cones\\im2.png");
-	Mat imgR = imread("F:\\Data\\Benchmark\\cones\\im6.png");
+	imgL.load("F:\\Data\\Benchmark\\cones\\im2.png");
+	imgR.load("F:\\Data\\Benchmark\\cones\\im6.png");
 #else
-	Mat imgL = imread("/home/henry/project/data/cones/im2.png");
-	Mat imgR = imread("/home/henry/project/data/cones/im6.png");
+	imgL->load(R"(/mnt/f/Data/Benchmark/teddy/im2.png)");
+	imgR->load(R"(/mnt/f/Data/Benchmark/teddy/im6.png)");
 #endif
-
-	namedWindow("test");
-	imshow("test", imgL);
-	waitKey(0);
+	const clock_t begin_time = clock();
+	PatchMatchAlg patch_match_alg;
+	patch_match_alg.solve(imgL, imgR);
+	std::cout << float( clock () - begin_time ) /  CLOCKS_PER_SEC;
 
     return 0;
 }

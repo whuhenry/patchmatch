@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.9)
+cmake_minimum_required(VERSION 3.5)
 project(patchmatch)
 
 set(CMAKE_CXX_STANDARD 11)
@@ -13,5 +13,5 @@ if(MSVC)
   endif()
 endif()
 
-add_executable(patchmatch main.cpp Image.cpp Image.h)
+add_executable(patchmatch main.cpp image.cpp PatchMatchAlg.cpp PatchMatchAlg.h)
 target_link_libraries(patchmatch ${OpenCV_LIBS})
