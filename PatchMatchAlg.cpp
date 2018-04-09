@@ -71,9 +71,21 @@ void PatchMatchAlg::solve(std::shared_ptr<Image> imgL, std::shared_ptr<Image> im
 
     //iteration solve
     for (int iteration = 0; iteration < 3; ++iteration) {
+//#ifdef __linux__
+//        show_result();
+//#endif
         spatial_match(iteration);
+//#ifdef __linux__
+//        show_result();
+//#endif
         view_match(iteration);
+//#ifdef __linux__
+//        show_result();
+//#endif
         plane_refine(iteration);
+//#ifdef __linux__
+//        show_result();
+//#endif
         BOOST_LOG_TRIVIAL(info) << "iteration " << iteration << " finished";
     }
 
@@ -82,6 +94,7 @@ void PatchMatchAlg::solve(std::shared_ptr<Image> imgL, std::shared_ptr<Image> im
 
     //show result
     show_result();
+//    write_result();
     BOOST_LOG_TRIVIAL(info) << "finish";
 }
 
@@ -102,7 +115,7 @@ void PatchMatchAlg::spatial_match(int iter_num) {
         y_end   = -1;
         y_inc   = -1;
     }
-    for (int view = 0; view < 2; ++view) {
+    for (int view = 1; view >=0; --view) {
         Image* base_img = view % 2 == 0 ? imgL_ : imgR_;
         Image* ref_img = view % 2 == 1 ? imgL_ : imgR_;
         MatchDirection direction = view % 2 == 0 ? L2R : R2L;
@@ -302,7 +315,7 @@ void PatchMatchAlg::post_process() {
                     = (unsigned char)(disp_l[i * cols_ + j] / max_disparity_ * 255);
         }
     }
-    imwrite(R"(/mnt/f/Data/Benchmark/teddy/disp_lr.bmp)", disp_mat);
+    imwrite(R"(/home/henry/disp_lr.bmp)", disp_mat);
     //weighted median filter
 
     delete[] valid_mask;
@@ -335,12 +348,11 @@ float PatchMatchAlg::aggregated_cost(Image* img1, Image* img2, int y, int x, flo
             float weight = exp(-l1_distance(Ip, Iq) / gamma_);
             float disp = disp_from_plane(x + dx, y + dy, plane);
             float corresponding_x = x + dx - direction * disp;
-            if (0 <= corresponding_x && x - 1 >= corresponding_x) {
+            if (0 <= corresponding_x && cols_ - 1 >= corresponding_x) {
                 img2->get_pixel_bilinear(corresponding_x, y + dy, iq_corresponding);
                 img2->get_grad_bilinear(corresponding_x, y + dy, gq_corresponding);
                 float dissimilarity = (1 - alpha_) * min(l1_distance(Iq, iq_corresponding), trunc_col_)
                                       + alpha_ * min(l1_distance(Gq, gq_corresponding), trunc_grad_);
-
                 cost += weight * dissimilarity;
             } else {
                 cost += weight * max_dissimilarity;
@@ -361,7 +373,27 @@ inline float PatchMatchAlg::disp_from_plane(int x, int y, float *plane) {
 
 template <class T1, class T2>
 inline float PatchMatchAlg::l1_distance(T1 *v1, T2 *v2) {
-    return abs(v1[0] - v2[0]) + abs(v1[1] - v2[1]) + abs(v1[1] - v2[1]);
+    return abs(v1[0] - v2[0]) + abs(v1[1] - v2[1]) + abs(v1[2] - v2[2]);
+}
+
+void PatchMatchAlg::write_result() {
+    cv::Mat disp_mat = Mat::zeros(rows_, cols_, CV_8U);
+    for (int i = 0; i < rows_; i++) {
+        for (int j = 0; j < cols_; j++) {
+            disp_mat.at<unsigned char>(i, j)
+                    = (unsigned char)(disp_from_plane(j, i, imgL_->plane_ + (i * cols_ + j) * 3) / max_disparity_ * 255);
+        }
+    }
+    imwrite(R"(/mnt/f/Data/Benchmark/teddy/disp_l.bmp)", disp_mat);
+
+    cv::Mat disp_mat_r = Mat::zeros(rows_, cols_, CV_8U);
+    for (int i = 0; i < rows_; i++) {
+        for (int j = 0; j < cols_; j++) {
+            disp_mat_r.at<unsigned char>(i, j)
+                    = (unsigned char)(disp_from_plane(j, i, imgR_->plane_ + (i * cols_ + j) * 3) / max_disparity_ * 255);
+        }
+    }
+    imwrite(R"(/mnt/f/Data/Benchmark/teddy/disp_r.bmp)", disp_mat_r);
 }
 
 void PatchMatchAlg::show_result() {
@@ -372,16 +404,16 @@ void PatchMatchAlg::show_result() {
                     = (unsigned char)(disp_from_plane(j, i, imgL_->plane_ + (i * cols_ + j) * 3) / max_disparity_ * 255);
         }
     }
-    imwrite(R"(/mnt/f/Data/Benchmark/teddy/disp_l.bmp)", disp_mat);
-
-    disp_mat = Mat::zeros(rows_, cols_, CV_8U);
+    cv::Mat disp_mat_r = Mat::zeros(rows_, cols_, CV_8U);
     for (int i = 0; i < rows_; i++) {
         for (int j = 0; j < cols_; j++) {
-            disp_mat.at<unsigned char>(i, j)
+            disp_mat_r.at<unsigned char>(i, j)
                     = (unsigned char)(disp_from_plane(j, i, imgR_->plane_ + (i * cols_ + j) * 3) / max_disparity_ * 255);
         }
     }
-    imwrite(R"(/mnt/f/Data/Benchmark/teddy/disp_r.bmp)", disp_mat);
+    imshow("left", disp_mat);
+    imshow("right", disp_mat_r);
+    waitKey(0);
 }
 
 template<class T>

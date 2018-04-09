@@ -6,7 +6,7 @@
 #define PATCHMATCH_PATCHMATCHALG_H
 
 #include <memory>
-#include "image.h"
+#include "Image.h"
 
 class PatchMatchAlg {
 public:
@@ -41,6 +41,7 @@ private:
 
     template <class T>
     static void cpy_vec3(T *dst, T *src);
+    void write_result();
     void show_result();
 };
 

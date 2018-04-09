@@ -16,5 +16,5 @@ if(MSVC)
   endif()
 endif()
 
-add_executable(patchmatch main.cpp image.cpp PatchMatchAlg.cpp PatchMatchAlg.h)
+add_executable(patchmatch main.cpp Image.cpp PatchMatchAlg.cpp PatchMatchAlg.h)
 target_link_libraries(patchmatch ${OpenCV_LIBS} Boost::log)

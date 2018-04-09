@@ -2,7 +2,7 @@
 // Created by henry on 18-2-1.
 //
 
-#include "image.h"
+#include "Image.h"
 
 
 using namespace cv;
