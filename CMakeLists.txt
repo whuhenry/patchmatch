@@ -4,6 +4,9 @@ project(patchmatch)
 set(CMAKE_CXX_STANDARD 11)
 find_package(OpenCV REQUIRED)
 
+SET(Boost_USE_STATIC_LIBS ON)
+find_package(Boost 1.56 REQUIRED COMPONENTS log)
+
 if(MSVC)
   # Force to always compile with W4
   if(CMAKE_CXX_FLAGS MATCHES "/W[0-4]")
@@ -14,4 +17,4 @@ if(MSVC)
 endif()
 
 add_executable(patchmatch main.cpp image.cpp PatchMatchAlg.cpp PatchMatchAlg.h)
-target_link_libraries(patchmatch ${OpenCV_LIBS})
+target_link_libraries(patchmatch ${OpenCV_LIBS} Boost::log)

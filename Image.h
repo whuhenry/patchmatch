@@ -13,57 +13,70 @@
 class Image {
 public:
     Image();
-    ~Image() = default;
+    ~Image();
     void load(std::string);
 
-    inline cv::Vec3f get_pixel_bilinear(float x, float y){
+    inline cv::Vec3f get_pixel_bilinear(float x, float y, float* out_pixel){
         auto ix = int(x);
         auto iy = int(y);
+        auto center = (iy * cols_ + ix) * 3;
         float u = y - iy;
         float v = x - ix;
         if (iy == y && ix == x) {
-            return image_mat_.at<cv::Vec3b>(iy, ix);
+            for (int i = 0; i < 3; i++) {
+                out_pixel[i] = image_[center + i];
+            }
         } else if (iy == y && ix != x) {
-            return (1 - v) * image_mat_.at<cv::Vec3b>(iy, ix) + v * image_mat_.at<cv::Vec3b>(iy, ix + 1);
+            for (int i = 0; i < 3; i++) {
+                out_pixel[i] = (1 - v) * image_[center + i] + v * image_[center + i + 3];
+            }
         } else if (iy != y && ix == x) {
-            return (1 - u) * image_mat_.at<cv::Vec3b>(iy, ix) + u * image_mat_.at<cv::Vec3b>(iy + 1, ix);
+            for (int i = 0; i < 3; i++) {
+                out_pixel[i] = (1 - u) * image_[center + i] + u * image_[center + i + 3 * cols_];
+            }
         } else {
-            return (1 - u) * (1 - v) * image_mat_.at<cv::Vec3b>(iy, ix) + (1 - u) * v * image_mat_.at<cv::Vec3b>(iy, ix + 1)
-                   + u * (1 - v) * image_mat_.at<cv::Vec3b>(iy + 1, ix) + u * v * image_mat_.at<cv::Vec3b>(iy + 1, ix + 1);
+            for (int i = 0; i < 3; i++) {
+                out_pixel[i] = (1 - u) * (1 - v) * image_[center + i] + (1 - u) * v * image_[center + i + 3]
+                        + u * (1 - v) * image_[center + i + 3 * cols_] + u * v * image_[center + i + 3 * cols_ + 3];
+            }
         }
     }
-    inline cv::Vec3f get_grad_bilinear(float x, float y){
+
+    inline cv::Vec3f get_grad_bilinear(float x, float y, float* out_pixel){
         auto ix = int(x);
         auto iy = int(y);
+        auto center = (iy * cols_ + ix) * 3;
         float u = y - iy;
         float v = x - ix;
         if (iy == y && ix == x) {
-            return grad_mat_.at<cv::Vec3f>(iy, ix);
+            for (int i = 0; i < 3; i++) {
+                out_pixel[i] = grad_[center + i];
+            }
         } else if (iy == y && ix != x) {
-            return (1 - v) * grad_mat_.at<cv::Vec3f>(iy, ix) + v * grad_mat_.at<cv::Vec3f>(iy, ix + 1);
+            for (int i = 0; i < 3; i++) {
+                out_pixel[i] = (1 - v) * grad_[center + i] + v * grad_[center + i + 3];
+            }
         } else if (iy != y && ix == x) {
-            return (1 - u) * grad_mat_.at<cv::Vec3f>(iy, ix) + u * grad_mat_.at<cv::Vec3f>(iy + 1, ix);
+            for (int i = 0; i < 3; i++) {
+                out_pixel[i] = (1 - u) * grad_[center + i] + u * grad_[center + i + 3 * cols_];
+            }
         } else {
-            return (1 - u) * (1 - v) * grad_mat_.at<cv::Vec3f>(iy, ix) + (1 - u) * v * grad_mat_.at<cv::Vec3f>(iy, ix + 1)
-                   + u * (1 - v) * grad_mat_.at<cv::Vec3f>(iy + 1, ix) + u * v * grad_mat_.at<cv::Vec3f>(iy + 1, ix + 1);
+            for (int i = 0; i < 3; i++) {
+                out_pixel[i] = (1 - u) * (1 - v) * grad_[center + i] + (1 - u) * v * grad_[center + i + 3]
+                               + u * (1 - v) * grad_[center + i + 3 * cols_] + u * v * grad_[center + i + 3 * cols_ + 3];
+            }
         }
     }
-    static inline cv::Vec3f normal_to_plane(int x, int y, float z, cv::Vec3f normal) {
-        cv::Vec3f plane;
+    static inline void normal_to_plane(int x, int y, float z, float* normal, float *plane) {
         plane[0] = -normal[0] / normal[2];
         plane[1] = -normal[1] / normal[2];
         plane[2] = (normal[0] * x + normal[1] * y + normal[2] * z) / normal[2];
-        return plane;
-    }
-    static inline cv::Vec3f plane_to_normal(cv::Vec3f plane){
-        cv::Vec3f normal;
-        normal[2] = sqrt(1 / (plane[0] * plane[0] + plane[1] * plane[1] + 1));
-        normal[0] = -plane[0] * normal[2];
-        normal[1] = -plane[1] * normal[2];
-        return normal;
     }
 
-    cv::Mat image_mat_, plane_mat_, grad_mat_, cost_mat_;
+    //cv::Mat image_mat_, plane_mat_, grad_mat_, cost_mat_;
+    u_char *image_;
+    short *grad_;
+    float *plane_, *cost_, *normal_;
     int rows_, cols_;
 };
 
