@@ -93,8 +93,8 @@ void PatchMatchAlg::solve(std::shared_ptr<Image> imgL, std::shared_ptr<Image> im
     post_process();
 
     //show result
-    show_result();
-//    write_result();
+//    show_result();
+    write_result();
     BOOST_LOG_TRIVIAL(info) << "finish";
 }
 
@@ -271,6 +271,9 @@ void PatchMatchAlg::post_process() {
         for (int x = 0; x < cols_; ++x) {
             float disparity_l = disp_from_plane(x, y, imgL_->plane_ + (y * cols_ + x) * 3);
             disp_l[y * cols_ + x] = disparity_l;
+            if(disparity_l < 0 || disparity_l > max_disparity_) {
+                continue;
+            }
             int corresponding_x = (int)lround(x - disparity_l);
             if (corresponding_x < 0 || corresponding_x >= cols_) {
                 continue;
@@ -287,7 +290,7 @@ void PatchMatchAlg::post_process() {
         for (int x = 0; x < cols_; ++x) {
             if (!valid_mask[y * cols_ + x]) {
                 int search_x = x - 1;
-                float search_disparity_l = -1, search_disparity_r = -1;
+                float search_disparity_l = -100000, search_disparity_r = -100000;
                 while(search_x  >= 0) {
                     if (valid_mask[y * cols_ + search_x]) {
                         search_disparity_l = disp_from_plane(x, y, imgL_->plane_ + (y * cols_ + search_x) * 3);
@@ -308,6 +311,38 @@ void PatchMatchAlg::post_process() {
         }
     }
 
+    //TODO: weighted median filter
+    u_char *Ip, *Iq;
+    for (int y = 0; y < rows_; ++y) {
+        if (y < window_radius_ || y + window_radius_ >= rows_ ) {
+            continue;
+        }
+        for (int x = 0; x < cols_; ++x) {
+            if (valid_mask[y * cols_ + x] || x < window_radius_ || x + window_radius_ >= cols_) {
+                continue;
+            }
+            Ip = imgL_->image_ + (y * cols_ + x) * 3;
+            std::vector<std::pair<float, float>> weighted_disp;
+            for (int dx = -window_radius_; dx <= window_radius_; ++dx) {
+                for (int dy = -window_radius_; dy <= window_radius_; ++dy) {
+                    int img_idx = ((y + dy) * cols_ + x + dx) * 3;
+//                    if (!valid_mask[img_idx / 3]) {
+//                        continue;
+//                    }
+                    Iq = imgL_->image_ + img_idx;
+                    float weight = exp(-l1_distance(Ip, Iq) / gamma_);
+                    float disp = disp_from_plane(x + dx, y + dy, imgL_->plane_ + img_idx);
+                    weighted_disp.emplace_back(disp, weight * disp);
+                    std::sort(weighted_disp.begin(), weighted_disp.end(),
+                              [](const std::pair<int, float> &p1, const std::pair<int, float> &p2) {
+                                  return p1.second < p2.second;
+                              });
+
+                }
+            }
+        }
+    }
+
     cv::Mat disp_mat = Mat::zeros(rows_, cols_, CV_8U);
     for (int i = 0; i < rows_; i++) {
         for (int j = 0; j < cols_; j++) {
@@ -316,7 +351,18 @@ void PatchMatchAlg::post_process() {
         }
     }
     imwrite(R"(/home/henry/disp_lr.bmp)", disp_mat);
-    //weighted median filter
+
+    cv::Mat mask_mat = Mat::zeros(rows_, cols_, CV_8U);
+    for (int i = 0; i < rows_; i++) {
+        for (int j = 0; j < cols_; j++) {
+            if (valid_mask[i * cols_ + j]) {
+                mask_mat.at<unsigned char>(i, j) = 255;
+            } else {
+                mask_mat.at<unsigned char>(i, j) = 0;
+            }
+        }
+    }
+    imwrite(R"(/home/henry/mask.bmp)", mask_mat);
 
     delete[] valid_mask;
     valid_mask = nullptr;
@@ -384,7 +430,7 @@ void PatchMatchAlg::write_result() {
                     = (unsigned char)(disp_from_plane(j, i, imgL_->plane_ + (i * cols_ + j) * 3) / max_disparity_ * 255);
         }
     }
-    imwrite(R"(/mnt/f/Data/Benchmark/teddy/disp_l.bmp)", disp_mat);
+    imwrite(R"(/home/henry/disp_l.bmp)", disp_mat);
 
     cv::Mat disp_mat_r = Mat::zeros(rows_, cols_, CV_8U);
     for (int i = 0; i < rows_; i++) {
@@ -393,7 +439,7 @@ void PatchMatchAlg::write_result() {
                     = (unsigned char)(disp_from_plane(j, i, imgR_->plane_ + (i * cols_ + j) * 3) / max_disparity_ * 255);
         }
     }
-    imwrite(R"(/mnt/f/Data/Benchmark/teddy/disp_r.bmp)", disp_mat_r);
+    imwrite(R"(/home/henry/disp_r.bmp)", disp_mat_r);
 }
 
 void PatchMatchAlg::show_result() {
