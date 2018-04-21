@@ -8,7 +8,7 @@
 
 using namespace cv;
 
-PatchMatchAlg::PatchMatchAlg()  : random(time(nullptr)) {
+PatchMatchAlg::PatchMatchAlg() : random(time(nullptr)) {
     gamma_ = 10;
     alpha_ = 0.9;
     trunc_col_ = 10;
@@ -21,7 +21,7 @@ PatchMatchAlg::PatchMatchAlg()  : random(time(nullptr)) {
 }
 
 
-void PatchMatchAlg::random_init(Image *img) {
+void PatchMatchAlg::random_init(Image* img) {
     //step1: random initialization
 
     long offset = 0;
@@ -32,7 +32,7 @@ void PatchMatchAlg::random_init(Image *img) {
             if (rand_depth < 0) {
                 rand_depth = -rand_depth;
             }
-            float *normal = img->normal_ + offset;
+            float* normal = img->normal_ + offset;
             normal[0] = dis(random);
             normal[1] = dis(random);
             normal[2] = dis(random);
@@ -71,30 +71,21 @@ void PatchMatchAlg::solve(std::shared_ptr<Image> imgL, std::shared_ptr<Image> im
 
     //iteration solve
     for (int iteration = 0; iteration < 3; ++iteration) {
-//#ifdef __linux__
-//        show_result();
-//#endif
+
         spatial_match(iteration);
-//#ifdef __linux__
-//        show_result();
-//#endif
+
         view_match(iteration);
-//#ifdef __linux__
-//        show_result();
-//#endif
+
         plane_refine(iteration);
-//#ifdef __linux__
-//        show_result();
-//#endif
+
         BOOST_LOG_TRIVIAL(info) << "iteration " << iteration << " finished";
     }
 
-    //TODO: post process
     post_process();
 
     //show result
-//    show_result();
-    write_result();
+    show_result();
+    //    write_result();
     BOOST_LOG_TRIVIAL(info) << "finish";
 }
 
@@ -102,24 +93,25 @@ void PatchMatchAlg::spatial_match(int iter_num) {
     int x_start, x_end, x_inc, y_start, y_end, y_inc;
     if (0 == iter_num % 2) {
         x_start = 0;
-        x_end   = cols_;
-        x_inc   = 1;
+        x_end = cols_;
+        x_inc = 1;
         y_start = 0;
-        y_end   = rows_;
-        y_inc   = 1;
-    } else {
-        x_start = cols_ - 1;
-        x_end   = -1;
-        x_inc   = -1;
-        y_start = rows_ - 1;
-        y_end   = -1;
-        y_inc   = -1;
+        y_end = rows_;
+        y_inc = 1;
     }
-    for (int view = 1; view >=0; --view) {
+    else {
+        x_start = cols_ - 1;
+        x_end = -1;
+        x_inc = -1;
+        y_start = rows_ - 1;
+        y_end = -1;
+        y_inc = -1;
+    }
+    for (int view = 1; view >= 0; --view) {
         Image* base_img = view % 2 == 0 ? imgL_ : imgR_;
         Image* ref_img = view % 2 == 1 ? imgL_ : imgR_;
         MatchDirection direction = view % 2 == 0 ? L2R : R2L;
-        for (int y = y_start; y != y_end; y += y_inc){
+        for (int y = y_start; y != y_end; y += y_inc) {
             for (int x = x_start; x != x_end; x += x_inc) {
                 float* plane_center = base_img->plane_ + ((y * cols_ + x) * 3);
                 float* cost_center = base_img->cost_ + (y * cols_ + x);
@@ -153,22 +145,23 @@ void PatchMatchAlg::view_match(int iter_num) {
     int x_start, x_end, x_inc, y_start, y_end, y_inc;
     if (0 == iter_num % 2) {
         x_start = 0;
-        x_end   = cols_;
-        x_inc   = 1;
+        x_end = cols_;
+        x_inc = 1;
         y_start = 0;
-        y_end   = rows_;
-        y_inc   = 1;
-    } else {
+        y_end = rows_;
+        y_inc = 1;
+    }
+    else {
         x_start = cols_ - 1;
-        x_end   = -1;
-        x_inc   = -1;
+        x_end = -1;
+        x_inc = -1;
         y_start = rows_ - 1;
-        y_end   = -1;
-        y_inc   = -1;
+        y_end = -1;
+        y_inc = -1;
     }
     for (int view = 0; view < 2; ++view) {
-        Image *base_img = view % 2 == 0 ? imgL_ : imgR_;
-        Image *ref_img = view % 2 == 1 ? imgL_ : imgR_;
+        Image* base_img = view % 2 == 0 ? imgL_ : imgR_;
+        Image* ref_img = view % 2 == 1 ? imgL_ : imgR_;
         MatchDirection direction = view % 2 == 0 ? L2R : R2L;
         for (int y = y_start; y != y_end; y += y_inc) {
             for (int x = x_start; x != x_end; x += x_inc) {
@@ -177,16 +170,16 @@ void PatchMatchAlg::view_match(int iter_num) {
                 float* base_normal = base_img->normal_ + ((y * cols_ + x) * 3);
                 int correspond_end = max(min(x - max_disparity_ * direction, cols_), 0) - direction;
                 int correspond_inc = -direction;
-                for (int correspond_x = x; correspond_x != correspond_end ; correspond_x += correspond_inc) {
+                for (int correspond_x = x; correspond_x != correspond_end; correspond_x += correspond_inc) {
                     float* plane_comp = ref_img->plane_ + ((y * cols_) + correspond_x) * 3;
                     float match_x_continue = correspond_x + direction * disp_from_plane(correspond_x, y, plane_comp);
                     int match_x = lround(match_x_continue);
                     if (match_x == x) {
                         float new_cost = aggregated_cost(base_img, ref_img, y, x, plane_comp, direction, *cost_center);
                         if (new_cost < *cost_center) {
-                           *cost_center = new_cost;
-                           cpy_vec3(plane_center, plane_comp);
-                           cpy_vec3(base_normal, ref_img->normal_ + ((y * cols_) + correspond_x) * 3);
+                            *cost_center = new_cost;
+                            cpy_vec3(plane_center, plane_comp);
+                            cpy_vec3(base_normal, ref_img->normal_ + ((y * cols_) + correspond_x) * 3);
                         }
                     }
                 }
@@ -199,24 +192,25 @@ void PatchMatchAlg::plane_refine(int iter_num) {
     int x_start, x_end, x_inc, y_start, y_end, y_inc;
     if (0 == iter_num % 2) {
         x_start = 0;
-        x_end   = cols_;
-        x_inc   = 1;
+        x_end = cols_;
+        x_inc = 1;
         y_start = 0;
-        y_end   = rows_;
-        y_inc   = 1;
-    } else {
-        x_start = cols_ - 1;
-        x_end   = -1;
-        x_inc   = -1;
-        y_start = rows_ - 1;
-        y_end   = -1;
-        y_inc   = -1;
+        y_end = rows_;
+        y_inc = 1;
     }
-    float* normal, plane_comp[3], delta_normal[3], new_normal[3];
+    else {
+        x_start = cols_ - 1;
+        x_end = -1;
+        x_inc = -1;
+        y_start = rows_ - 1;
+        y_end = -1;
+        y_inc = -1;
+    }
+    float *normal, plane_comp[3], delta_normal[3], new_normal[3];
     float *plane_center, *cost_center, delta_z_max, delta_n_max, disp;
     for (int view = 0; view < 2; ++view) {
-        Image *base_img = view % 2 == 0 ? imgL_ : imgR_;
-        Image *ref_img = view % 2 == 1 ? imgL_ : imgR_;
+        Image* base_img = view % 2 == 0 ? imgL_ : imgR_;
+        Image* ref_img = view % 2 == 1 ? imgL_ : imgR_;
         MatchDirection direction = view % 2 == 0 ? L2R : R2L;
         for (int y = y_start; y != y_end; y += y_inc) {
             for (int x = x_start; x != x_end; x += x_inc) {
@@ -271,7 +265,7 @@ void PatchMatchAlg::post_process() {
         for (int x = 0; x < cols_; ++x) {
             float disparity_l = disp_from_plane(x, y, imgL_->plane_ + (y * cols_ + x) * 3);
             disp_l[y * cols_ + x] = disparity_l;
-            if(disparity_l < 0 || disparity_l > max_disparity_) {
+            if (disparity_l < 0 || disparity_l > max_disparity_) {
                 continue;
             }
             int corresponding_x = (int)lround(x - disparity_l);
@@ -280,7 +274,7 @@ void PatchMatchAlg::post_process() {
             }
             float disparity_r = disp_from_plane(corresponding_x, y, imgR_->plane_ + (y * cols_ + corresponding_x) * 3);
             if (abs(disparity_r - disparity_l) <= 1) {
-               valid_mask[y * cols_ + x] = true;
+                valid_mask[y * cols_ + x] = true;
             }
         }
     }
@@ -291,7 +285,7 @@ void PatchMatchAlg::post_process() {
             if (!valid_mask[y * cols_ + x]) {
                 int search_x = x - 1;
                 float search_disparity_l = -100000, search_disparity_r = -100000;
-                while(search_x  >= 0) {
+                while (search_x >= 0) {
                     if (valid_mask[y * cols_ + search_x]) {
                         search_disparity_l = disp_from_plane(x, y, imgL_->plane_ + (y * cols_ + search_x) * 3);
                         break;
@@ -299,7 +293,7 @@ void PatchMatchAlg::post_process() {
                     --search_x;
                 }
                 search_x = x + 1;
-                while(search_x  < cols_) {
+                while (search_x < cols_) {
                     if (valid_mask[y * cols_ + search_x]) {
                         search_disparity_r = disp_from_plane(x, y, imgL_->plane_ + (y * cols_ + search_x) * 3);
                         break;
@@ -312,9 +306,9 @@ void PatchMatchAlg::post_process() {
     }
 
     //TODO: weighted median filter
-    u_char *Ip, *Iq;
+    uint8_t *Ip, *Iq;
     for (int y = 0; y < rows_; ++y) {
-        if (y < window_radius_ || y + window_radius_ >= rows_ ) {
+        if (y < window_radius_ || y + window_radius_ >= rows_) {
             continue;
         }
         for (int x = 0; x < cols_; ++x) {
@@ -326,15 +320,15 @@ void PatchMatchAlg::post_process() {
             for (int dx = -window_radius_; dx <= window_radius_; ++dx) {
                 for (int dy = -window_radius_; dy <= window_radius_; ++dy) {
                     int img_idx = ((y + dy) * cols_ + x + dx) * 3;
-//                    if (!valid_mask[img_idx / 3]) {
-//                        continue;
-//                    }
+                    if (!valid_mask[img_idx / 3]) {
+                        continue;
+                    }
                     Iq = imgL_->image_ + img_idx;
                     float weight = exp(-l1_distance(Ip, Iq) / gamma_);
                     float disp = disp_from_plane(x + dx, y + dy, imgL_->plane_ + img_idx);
                     weighted_disp.emplace_back(disp, weight * disp);
                     std::sort(weighted_disp.begin(), weighted_disp.end(),
-                              [](const std::pair<int, float> &p1, const std::pair<int, float> &p2) {
+                              [](const std::pair<int, float>& p1, const std::pair<int, float>& p2) {
                                   return p1.second < p2.second;
                               });
 
@@ -347,17 +341,20 @@ void PatchMatchAlg::post_process() {
     for (int i = 0; i < rows_; i++) {
         for (int j = 0; j < cols_; j++) {
             disp_mat.at<unsigned char>(i, j)
-                    = (unsigned char)(disp_l[i * cols_ + j] / max_disparity_ * 255);
+                = (unsigned char)(disp_l[i * cols_ + j] / max_disparity_ * 255);
         }
     }
     imwrite(R"(/home/henry/disp_lr.bmp)", disp_mat);
+    imshow("lr", disp_mat);
+    waitKey(0);
 
     cv::Mat mask_mat = Mat::zeros(rows_, cols_, CV_8U);
     for (int i = 0; i < rows_; i++) {
         for (int j = 0; j < cols_; j++) {
             if (valid_mask[i * cols_ + j]) {
                 mask_mat.at<unsigned char>(i, j) = 255;
-            } else {
+            }
+            else {
                 mask_mat.at<unsigned char>(i, j) = 0;
             }
         }
@@ -370,22 +367,22 @@ void PatchMatchAlg::post_process() {
     disp_l = nullptr;
 }
 
-float PatchMatchAlg::aggregated_cost(Image* img1, Image* img2, int y, int x, float *plane,
+float PatchMatchAlg::aggregated_cost(Image* img1, Image* img2, int y, int x, float* plane,
                                      MatchDirection direction, float base_cost/* = FLT_MAX*/) {
     if (y < window_radius_ || x < window_radius_ || y + window_radius_ >= rows_ ||
         x + window_radius_ >= cols_) {
         return FLT_MAX;
     }
 
-//    float disp = disp_from_plane(x, y, plane);
-//    if (disp < 0 || disp > max_disparity_) {
-//        return FLT_MAX;
-//    }
+    //    float disp = disp_from_plane(x, y, plane);
+    //    if (disp < 0 || disp > max_disparity_) {
+    //        return FLT_MAX;
+    //    }
 
     float cost = 0;
-    u_char *Ip = img1->image_ + (y * cols_ + x) * 3;
-    u_char *Iq = nullptr;
-    short *Gq = nullptr;
+    uint8_t* Ip = img1->image_ + (y * cols_ + x) * 3;
+    uint8_t* Iq = nullptr;
+    short* Gq = nullptr;
     float iq_corresponding[3], gq_corresponding[3];
     for (int dy = -window_radius_; dy <= window_radius_; ++dy) {
         for (int dx = -window_radius_; dx <= window_radius_; ++dx) {
@@ -398,13 +395,13 @@ float PatchMatchAlg::aggregated_cost(Image* img1, Image* img2, int y, int x, flo
                 img2->get_pixel_bilinear(corresponding_x, y + dy, iq_corresponding);
                 img2->get_grad_bilinear(corresponding_x, y + dy, gq_corresponding);
                 float dissimilarity = (1 - alpha_) * min(l1_distance(Iq, iq_corresponding), trunc_col_)
-                                      + alpha_ * min(l1_distance(Gq, gq_corresponding), trunc_grad_);
+                    + alpha_ * min(l1_distance(Gq, gq_corresponding), trunc_grad_);
                 cost += weight * dissimilarity;
-            } else {
+            }
+            else {
                 cost += weight * max_dissimilarity;
             }
-            if(cost > base_cost)
-            {
+            if (cost > base_cost) {
                 return FLT_MAX;
             }
         }
@@ -413,12 +410,12 @@ float PatchMatchAlg::aggregated_cost(Image* img1, Image* img2, int y, int x, flo
     return cost;
 }
 
-inline float PatchMatchAlg::disp_from_plane(int x, int y, float *plane) {
+inline float PatchMatchAlg::disp_from_plane(int x, int y, float* plane) {
     return x * plane[0] + y * plane[1] + plane[2];
 }
 
 template <class T1, class T2>
-inline float PatchMatchAlg::l1_distance(T1 *v1, T2 *v2) {
+inline float PatchMatchAlg::l1_distance(T1* v1, T2* v2) {
     return abs(v1[0] - v2[0]) + abs(v1[1] - v2[1]) + abs(v1[2] - v2[2]);
 }
 
@@ -427,7 +424,7 @@ void PatchMatchAlg::write_result() {
     for (int i = 0; i < rows_; i++) {
         for (int j = 0; j < cols_; j++) {
             disp_mat.at<unsigned char>(i, j)
-                    = (unsigned char)(disp_from_plane(j, i, imgL_->plane_ + (i * cols_ + j) * 3) / max_disparity_ * 255);
+                = (unsigned char)(disp_from_plane(j, i, imgL_->plane_ + (i * cols_ + j) * 3) / max_disparity_ * 255);
         }
     }
     imwrite(R"(/home/henry/disp_l.bmp)", disp_mat);
@@ -436,7 +433,7 @@ void PatchMatchAlg::write_result() {
     for (int i = 0; i < rows_; i++) {
         for (int j = 0; j < cols_; j++) {
             disp_mat_r.at<unsigned char>(i, j)
-                    = (unsigned char)(disp_from_plane(j, i, imgR_->plane_ + (i * cols_ + j) * 3) / max_disparity_ * 255);
+                = (unsigned char)(disp_from_plane(j, i, imgR_->plane_ + (i * cols_ + j) * 3) / max_disparity_ * 255);
         }
     }
     imwrite(R"(/home/henry/disp_r.bmp)", disp_mat_r);
@@ -447,14 +444,14 @@ void PatchMatchAlg::show_result() {
     for (int i = 0; i < rows_; i++) {
         for (int j = 0; j < cols_; j++) {
             disp_mat.at<unsigned char>(i, j)
-                    = (unsigned char)(disp_from_plane(j, i, imgL_->plane_ + (i * cols_ + j) * 3) / max_disparity_ * 255);
+                = (unsigned char)(disp_from_plane(j, i, imgL_->plane_ + (i * cols_ + j) * 3) / max_disparity_ * 255);
         }
     }
     cv::Mat disp_mat_r = Mat::zeros(rows_, cols_, CV_8U);
     for (int i = 0; i < rows_; i++) {
         for (int j = 0; j < cols_; j++) {
             disp_mat_r.at<unsigned char>(i, j)
-                    = (unsigned char)(disp_from_plane(j, i, imgR_->plane_ + (i * cols_ + j) * 3) / max_disparity_ * 255);
+                = (unsigned char)(disp_from_plane(j, i, imgR_->plane_ + (i * cols_ + j) * 3) / max_disparity_ * 255);
         }
     }
     imshow("left", disp_mat);
@@ -462,15 +459,15 @@ void PatchMatchAlg::show_result() {
     waitKey(0);
 }
 
-template<class T>
-inline float PatchMatchAlg::l2_norm(T *v1) {
+template <class T>
+inline void PatchMatchAlg::l2_norm(T* v1) {
     float l2_normal = sqrt(v1[0] * v1[0] + v1[1] * v1[1] + v1[2] * v1[2]);
     for (int i = 0; i < 3; ++i) {
         v1[i] /= l2_normal;
     }
 }
 
-template<class T>
-inline void PatchMatchAlg::cpy_vec3(T *dst, T *src) {
+template <class T>
+inline void PatchMatchAlg::cpy_vec3(T* dst, T* src) {
     memcpy(dst, src, 3 * sizeof(T));
 }

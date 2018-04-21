@@ -16,7 +16,7 @@ public:
     ~Image();
     void load(std::string);
 
-    inline cv::Vec3f get_pixel_bilinear(float x, float y, float* out_pixel){
+    inline void get_pixel_bilinear(float x, float y, float* out_pixel){
         auto ix = int(x);
         auto iy = int(y);
         auto center = (iy * cols_ + ix) * 3;
@@ -42,7 +42,7 @@ public:
         }
     }
 
-    inline cv::Vec3f get_grad_bilinear(float x, float y, float* out_pixel){
+    inline void get_grad_bilinear(float x, float y, float* out_pixel){
         auto ix = int(x);
         auto iy = int(y);
         auto center = (iy * cols_ + ix) * 3;
@@ -74,7 +74,7 @@ public:
     }
 
     //cv::Mat image_mat_, plane_mat_, grad_mat_, cost_mat_;
-    u_char *image_;
+    uint8_t *image_;
     short *grad_;
     float *plane_, *cost_, *normal_;
     int rows_, cols_;

@@ -37,7 +37,7 @@ private:
     static float l1_distance(T1 *v1, T2 *v2);
 
     template <class T>
-    static float l2_norm(T * v1);
+    static void l2_norm(T * v1);
 
     template <class T>
     static void cpy_vec3(T *dst, T *src);

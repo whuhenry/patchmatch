@@ -12,8 +12,8 @@ int main(int argc, char* argv[]) {
 	auto imgL = std::make_shared<Image>();
 	auto imgR = std::make_shared<Image>();
 #ifdef _WIN64
-	imgL.load("F:\\Data\\Benchmark\\cones\\im2.png");
-	imgR.load("F:\\Data\\Benchmark\\cones\\im6.png");
+	imgL->load("F:\\Data\\Benchmark\\cones\\im2.png");
+	imgR->load("F:\\Data\\Benchmark\\cones\\im6.png");
 #else
 	imgL->load(R"(/home/henry/project/data/teddy/im2.png)");
 	imgR->load(R"(/home/henry/project/data/teddy/im6.png)");
