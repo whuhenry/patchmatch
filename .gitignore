@@ -53,3 +53,4 @@ fabric.properties
 /CMakeBuilds/3e5b0b1f-fb7e-bc35-a67a-a4839f753f91/build/x64-Debug
 
 build/
+build_debug/

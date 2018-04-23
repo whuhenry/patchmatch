@@ -20,6 +20,17 @@ PatchMatchAlg::PatchMatchAlg() : random(time(nullptr)) {
     window_pixel_count_ = (window_radius_ * 2 + 1) * (window_radius_ * 2 + 1);
 }
 
+PatchMatchAlg::~PatchMatchAlg() {
+    if (nullptr != imgL_) {
+        delete imgL_;
+        imgL_ = nullptr;
+    }
+    if (nullptr != imgR_) {
+        delete imgR_;
+        imgR_ = nullptr;
+    }
+}
+
 
 void PatchMatchAlg::random_init(Image* img) {
     //step1: random initialization
@@ -35,11 +46,7 @@ void PatchMatchAlg::random_init(Image* img) {
             float* normal = img->normal_ + offset;
             normal[0] = dis(random);
             normal[1] = dis(random);
-            normal[2] = dis(random);
-            if (normal[2] < 0) {
-                normal[2] = -normal[2];
-            }
-            l2_norm(normal);
+            normal[2] = 1 - sqrt(normal[0] * normal[0] + normal[1] * normal[1]);
             Image::normal_to_plane(j, i, rand_depth, normal, img->plane_ + offset);
             offset += 3;
         }
@@ -87,6 +94,45 @@ void PatchMatchAlg::solve(std::shared_ptr<Image> imgL, std::shared_ptr<Image> im
     show_result();
     //    write_result();
     BOOST_LOG_TRIVIAL(info) << "finish";
+}
+
+void PatchMatchAlg::save_disp_map(std::string path) {
+    std::ofstream ofs;
+    ofs.open(path);
+    if(!ofs.is_open()) {
+        return;
+    }
+
+    ofs << "ply" << std::endl;
+    ofs << "format ascii 1.0" << std::endl;
+    ofs << "element vertex " << cols_ * rows_ << std::endl;
+    ofs << "property float x" << std::endl;
+    ofs << "property float y" << std::endl;
+    ofs << "property float z" << std::endl;
+    ofs << "property float nx" << std::endl;
+    ofs << "property float ny" << std::endl;
+    ofs << "property float nz" << std::endl;
+    ofs << "property uchar diffuse_red" << std::endl;
+    ofs << "property uchar diffuse_green" << std::endl;
+    ofs << "property uchar diffuse_blue" << std::endl;
+    ofs << "end_header" << std::endl;
+
+    int offset = 0;
+    float disp, *normal;
+    uint8_t *diffuse;
+    for (int i = 0; i < rows_; ++i) {
+        for (int j = 0; j < cols_; ++j) {
+            disp = disp_from_plane(j, i, imgL_->plane_ + offset);
+            normal = imgL_->normal_ + offset;
+            diffuse = imgL_->image_ + offset;
+            ofs << j << " " << i << " " << disp << " "
+                << normal[0] << " " << normal[1] << " " << normal[2] << " "
+                << diffuse[0] << " " << diffuse[1] << " " << diffuse[2] << std::endl;
+            offset += 3;
+        }
+    }
+
+    ofs.close();
 }
 
 void PatchMatchAlg::spatial_match(int iter_num) {
@@ -165,24 +211,28 @@ void PatchMatchAlg::view_match(int iter_num) {
         MatchDirection direction = view % 2 == 0 ? L2R : R2L;
         for (int y = y_start; y != y_end; y += y_inc) {
             for (int x = x_start; x != x_end; x += x_inc) {
-                float* plane_center = base_img->plane_ + ((y * cols_ + x) * 3);
-                float* cost_center = base_img->cost_ + (y * cols_ + x);
-                float* base_normal = base_img->normal_ + ((y * cols_ + x) * 3);
-                int correspond_end = max(min(x - max_disparity_ * direction, cols_), 0) - direction;
-                int correspond_inc = -direction;
-                for (int correspond_x = x; correspond_x != correspond_end; correspond_x += correspond_inc) {
-                    float* plane_comp = ref_img->plane_ + ((y * cols_) + correspond_x) * 3;
-                    float match_x_continue = correspond_x + direction * disp_from_plane(correspond_x, y, plane_comp);
-                    int match_x = lround(match_x_continue);
-                    if (match_x == x) {
-                        float new_cost = aggregated_cost(base_img, ref_img, y, x, plane_comp, direction, *cost_center);
-                        if (new_cost < *cost_center) {
-                            *cost_center = new_cost;
-                            cpy_vec3(plane_center, plane_comp);
-                            cpy_vec3(base_normal, ref_img->normal_ + ((y * cols_) + correspond_x) * 3);
-                        }
-                    }
+                float* ref_plane_center = ref_img->plane_ + ((y * cols_ + x) * 3);
+                float disp = disp_from_plane(x, y, ref_plane_center);
+                if (disp < 0.0f) {
+                    disp = 0.0f;
+                } else if (disp >= max_disparity_) {
+                    disp = max_disparity_ - 1;
                 }
+                int correspond_x = lround(x + direction * disp);
+                if (correspond_x < 0) {
+                    correspond_x = 0;
+                } else if (correspond_x >= cols_) {
+                    correspond_x = cols_ - 1;
+                }
+                float* cost_center = base_img->cost_ + (y * cols_ + correspond_x);
+                const float new_cost = aggregated_cost(base_img, ref_img, y, correspond_x, ref_plane_center, direction, *cost_center);
+                if (new_cost < *cost_center) {
+                    *cost_center = new_cost;
+                    cpy_vec3(base_img->plane_ + (y * cols_ + correspond_x) * 3, ref_plane_center);
+                    cpy_vec3(base_img->normal_ + (y * cols_ + correspond_x) * 3,
+                             ref_img->normal_ + ((y * cols_) + x) * 3);
+                }
+
             }
         }
     }
@@ -328,7 +378,7 @@ void PatchMatchAlg::post_process() {
                     float disp = disp_from_plane(x + dx, y + dy, imgL_->plane_ + img_idx);
                     weighted_disp.emplace_back(disp, weight * disp);
                     std::sort(weighted_disp.begin(), weighted_disp.end(),
-                              [](const std::pair<int, float>& p1, const std::pair<int, float>& p2) {
+                              [](const std::pair<float, float>& p1, const std::pair<float, float>& p2) {
                                   return p1.second < p2.second;
                               });
 
