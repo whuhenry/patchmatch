@@ -32,12 +32,12 @@ void Image::load(std::string image_path) {
     rows_ = image_mat.rows;
     cols_ = image_mat.cols;
 
-    image_ = new u_char[rows_ * cols_ * 3];
+    image_ = new uint8_t[rows_ * cols_ * 3];
     grad_ = new short[rows_ * cols_ * 3];
     plane_ = new float[rows_ * cols_ * 3];
     cost_ = new float[rows_ * cols_];
     normal_ = new float[rows_ * cols_ * 3];
-    memcpy(image_, image_mat.data, rows_ * cols_ * 3 * sizeof(u_char));
+    memcpy(image_, image_mat.data, rows_ * cols_ * 3 * sizeof(uint8_t));
     memset(grad_, 0, rows_ * cols_ * 3 * sizeof(short));
 
     for (int i = 0; i < rows_ - 1; ++i) {
