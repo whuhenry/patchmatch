@@ -23,7 +23,7 @@ int main(int argc, char* argv[]) {
     patch_match_alg.max_disparity_ = 64;
 	patch_match_alg.solve(imgL, imgR);
 	
-    patch_match_alg.save_disp_map(R"(F:\1.ply)");
+    patch_match_alg.save_disp_map(R"(/home/henry/1.ply)");
 
     return 0;
 }

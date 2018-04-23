@@ -11,7 +11,7 @@
 class PatchMatchAlg {
 public:
     float gamma_, alpha_, trunc_col_, trunc_grad_, max_dissimilarity;
-    int window_radius_, neighbor_radius_, max_disparity_;
+    int window_radius_, max_disparity_;
     PatchMatchAlg();
     ~PatchMatchAlg();
     void solve(std::shared_ptr<Image> imgL, std::shared_ptr<Image> imgR);

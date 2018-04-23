@@ -8,27 +8,18 @@
 
 using namespace cv;
 
-PatchMatchAlg::PatchMatchAlg() : random(time(nullptr)) {
+PatchMatchAlg::PatchMatchAlg() {
     gamma_ = 10;
     alpha_ = 0.9;
     trunc_col_ = 10;
     trunc_grad_ = 2;
     max_dissimilarity = (1 - alpha_) * trunc_col_ + alpha_ * trunc_grad_;
-    window_radius_ = 4;
-    neighbor_radius_ = 4;
+    window_radius_ = 17;
     max_disparity_ = 64;
     window_pixel_count_ = (window_radius_ * 2 + 1) * (window_radius_ * 2 + 1);
 }
 
 PatchMatchAlg::~PatchMatchAlg() {
-    if (nullptr != imgL_) {
-        delete imgL_;
-        imgL_ = nullptr;
-    }
-    if (nullptr != imgR_) {
-        delete imgR_;
-        imgR_ = nullptr;
-    }
 }
 
 
@@ -46,7 +37,11 @@ void PatchMatchAlg::random_init(Image* img) {
             float* normal = img->normal_ + offset;
             normal[0] = dis(random);
             normal[1] = dis(random);
-            normal[2] = 1 - sqrt(normal[0] * normal[0] + normal[1] * normal[1]);
+            normal[2] = dis(random);
+            l2_norm(normal);
+            if(normal[2] < 0) {
+                normal[2] = -normal[2];
+            }
             Image::normal_to_plane(j, i, rand_depth, normal, img->plane_ + offset);
             offset += 3;
         }
@@ -127,7 +122,7 @@ void PatchMatchAlg::save_disp_map(std::string path) {
             diffuse = imgL_->image_ + offset;
             ofs << j << " " << i << " " << disp << " "
                 << normal[0] << " " << normal[1] << " " << normal[2] << " "
-                << diffuse[0] << " " << diffuse[1] << " " << diffuse[2] << std::endl;
+                << (int)diffuse[0] << " " << (int)diffuse[1] << " " << (int)diffuse[2] << std::endl;
             offset += 3;
         }
     }
@@ -162,24 +157,27 @@ void PatchMatchAlg::spatial_match(int iter_num) {
                 float* plane_center = base_img->plane_ + ((y * cols_ + x) * 3);
                 float* cost_center = base_img->cost_ + (y * cols_ + x);
                 float* base_normal = base_img->normal_ + ((y * cols_ + x) * 3);
-                for (int dy = -neighbor_radius_; dy <= neighbor_radius_; ++dy) {
-                    int dx_end = (dy <= 0) ? 1 : -neighbor_radius_;
-                    int y_neighbor = y - dy * y_inc;
-                    if (y_neighbor < 0 || y_neighbor >= rows_) {
-                        continue;
+
+                //x_neighbor
+                int x_neighbor = x - x_inc;
+                if (x_neighbor >=0 && x_neighbor < cols_) {
+                    float* plane_comp = base_img->plane_ + (y * cols_ + x_neighbor) * 3;
+                    float new_cost = aggregated_cost(base_img, ref_img, y, x, plane_comp, direction, *cost_center);
+                    if (new_cost < *cost_center) {
+                        *cost_center = new_cost;
+                        cpy_vec3(plane_center, plane_comp);
+                        cpy_vec3(base_normal, base_img->normal_ + (y * cols_ + x_neighbor) * 3);
                     }
-                    for (int dx = neighbor_radius_; dx >= dx_end; --dx) {
-                        int x_neighbor = x - dx * x_inc;
-                        if (x_neighbor < 0 || x_neighbor >= cols_) {
-                            continue;
-                        }
-                        float* plane_comp = base_img->plane_ + (y_neighbor * cols_ + x_neighbor) * 3;
-                        float new_cost = aggregated_cost(base_img, ref_img, y, x, plane_comp, direction, *cost_center);
-                        if (new_cost < *cost_center) {
-                            *cost_center = new_cost;
-                            cpy_vec3(plane_center, plane_comp);
-                            cpy_vec3(base_normal, base_img->normal_ + (y_neighbor * cols_ + x_neighbor) * 3);
-                        }
+                }
+                //y_neighbor
+                int y_neighbor = y - y_inc;
+                if (y_neighbor >=0 && y_neighbor < rows_) {
+                    float* plane_comp = base_img->plane_ + (y_neighbor * cols_ + x) * 3;
+                    float new_cost = aggregated_cost(base_img, ref_img, y, x, plane_comp, direction, *cost_center);
+                    if (new_cost < *cost_center) {
+                        *cost_center = new_cost;
+                        cpy_vec3(plane_center, plane_comp);
+                        cpy_vec3(base_normal, base_img->normal_ + (y_neighbor * cols_ + x) * 3);
                     }
                 }
             }
@@ -440,6 +438,10 @@ float PatchMatchAlg::aggregated_cost(Image* img1, Image* img2, int y, int x, flo
             Gq = img1->grad_ + ((y + dy) * cols_ + x + dx) * 3;
             float weight = exp(-l1_distance(Ip, Iq) / gamma_);
             float disp = disp_from_plane(x + dx, y + dy, plane);
+            if (disp < 0 || disp >= max_disparity_) {
+                cost += weight * max_dissimilarity;
+                continue;
+            }
             float corresponding_x = x + dx - direction * disp;
             if (0 <= corresponding_x && cols_ - 1 >= corresponding_x) {
                 img2->get_pixel_bilinear(corresponding_x, y + dy, iq_corresponding);
