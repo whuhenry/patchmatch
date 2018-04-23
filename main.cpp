@@ -20,6 +20,7 @@ int main(int argc, char* argv[]) {
 #endif
 	const clock_t begin_time = clock();
 	PatchMatchAlg patch_match_alg;
+	patch_match_alg.max_disparity_ = 64;
 	patch_match_alg.solve(imgL, imgR);
 	std::cout << float( clock () - begin_time ) /  CLOCKS_PER_SEC;
 

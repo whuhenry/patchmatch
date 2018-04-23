@@ -71,21 +71,13 @@ void PatchMatchAlg::solve(std::shared_ptr<Image> imgL, std::shared_ptr<Image> im
 
     //iteration solve
     for (int iteration = 0; iteration < 3; ++iteration) {
-//#ifdef __linux__
-//        show_result();
-//#endif
+
         spatial_match(iteration);
-//#ifdef __linux__
-//        show_result();
-//#endif
+        //show_result();
         view_match(iteration);
-//#ifdef __linux__
-//        show_result();
-//#endif
+        show_result();
         plane_refine(iteration);
-//#ifdef __linux__
-//        show_result();
-//#endif
+
         BOOST_LOG_TRIVIAL(info) << "iteration " << iteration << " finished";
     }
 
@@ -312,7 +304,7 @@ void PatchMatchAlg::post_process() {
     }
 
     //TODO: weighted median filter
-    u_char *Ip, *Iq;
+    uint8_t *Ip, *Iq;
     for (int y = 0; y < rows_; ++y) {
         if (y < window_radius_ || y + window_radius_ >= rows_ ) {
             continue;
@@ -383,8 +375,8 @@ float PatchMatchAlg::aggregated_cost(Image* img1, Image* img2, int y, int x, flo
 //    }
 
     float cost = 0;
-    u_char *Ip = img1->image_ + (y * cols_ + x) * 3;
-    u_char *Iq = nullptr;
+    uint8_t *Ip = img1->image_ + (y * cols_ + x) * 3;
+    uint8_t *Iq = nullptr;
     short *Gq = nullptr;
     float iq_corresponding[3], gq_corresponding[3];
     for (int dy = -window_radius_; dy <= window_radius_; ++dy) {
@@ -463,7 +455,7 @@ void PatchMatchAlg::show_result() {
 }
 
 template<class T>
-inline float PatchMatchAlg::l2_norm(T *v1) {
+inline void PatchMatchAlg::l2_norm(T *v1) {
     float l2_normal = sqrt(v1[0] * v1[0] + v1[1] * v1[1] + v1[2] * v1[2]);
     for (int i = 0; i < 3; ++i) {
         v1[i] /= l2_normal;
