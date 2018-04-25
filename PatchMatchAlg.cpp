@@ -86,8 +86,8 @@ void PatchMatchAlg::solve(std::shared_ptr<Image> imgL, std::shared_ptr<Image> im
     post_process();
 
     //show result
-    show_result();
-    //    write_result();
+    //show_result();
+    write_result();
     BOOST_LOG_TRIVIAL(info) << "finish";
 }
 
@@ -148,7 +148,7 @@ void PatchMatchAlg::spatial_match(int iter_num) {
         y_end = -1;
         y_inc = -1;
     }
-    for (int view = 1; view >= 0; --view) {
+    for (int view = 0; view < 2; ++view) {
         Image* base_img = view % 2 == 0 ? imgL_ : imgR_;
         Image* ref_img = view % 2 == 1 ? imgL_ : imgR_;
         MatchDirection direction = view % 2 == 0 ? L2R : R2L;
