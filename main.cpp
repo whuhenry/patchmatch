@@ -15,15 +15,16 @@ int main(int argc, char* argv[]) {
 	imgL->load(R"(F:\Data\Benchmark\teddy\im2.png)");
 	imgR->load(R"(F:\Data\Benchmark\teddy\im6.png)");
 #else
-	imgL->load(R"(/home/henry/project/data/teddy/im2.png)");
-	imgR->load(R"(/home/henry/project/data/teddy/im6.png)");
+	imgL->load(R"(/home/henry/project/data/hyper/left.png)");
+	imgR->load(R"(/home/henry/project/data/hyper/right.png)");
 #endif
 	const clock_t begin_time = clock();
 	PatchMatchAlg patch_match_alg;
-    patch_match_alg.max_disparity_ = 64;
+    patch_match_alg.max_disparity_ = 160;
+    patch_match_alg.window_radius_ = 17;
 	patch_match_alg.solve(imgL, imgR);
 	
-    patch_match_alg.save_disp_map(R"(/home/henry/1.ply)");
+    //patch_match_alg.save_disp_map(R"(/home/henry/1.ply)");
 
     return 0;
 }

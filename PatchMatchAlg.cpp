@@ -332,7 +332,7 @@ void PatchMatchAlg::post_process() {
         for (int x = 0; x < cols_; ++x) {
             if (!valid_mask[y * cols_ + x]) {
                 int search_x = x - 1;
-                float search_disparity_l = -100000, search_disparity_r = -100000;
+                float search_disparity_l = 100000, search_disparity_r = 100000;
                 while (search_x >= 0) {
                     if (valid_mask[y * cols_ + search_x]) {
                         search_disparity_l = disp_from_plane(x, y, imgL_->plane_ + (y * cols_ + search_x) * 3);
@@ -353,35 +353,49 @@ void PatchMatchAlg::post_process() {
         }
     }
 
+    cv::Mat disp_mat_unfilter = Mat::zeros(rows_, cols_, CV_8U);
+    for (int i = 0; i < rows_; i++) {
+        for (int j = 0; j < cols_; j++) {
+            disp_mat_unfilter.at<unsigned char>(i, j)
+                    = (unsigned char)(disp_l[i * cols_ + j] / max_disparity_ * 255);
+        }
+    }
+    imwrite(R"(/home/henry/disp_lr_unfilter.bmp)", disp_mat_unfilter);
+    imshow("lr_unfilter", disp_mat_unfilter);
+    waitKey(0);
+
     //TODO: weighted median filter
     uint8_t *Ip, *Iq;
-    for (int y = 0; y < rows_; ++y) {
-        if (y < window_radius_ || y + window_radius_ >= rows_) {
-            continue;
-        }
-        for (int x = 0; x < cols_; ++x) {
-            if (valid_mask[y * cols_ + x] || x < window_radius_ || x + window_radius_ >= cols_) {
+    //(2 * w + 1) * (2 * w + 1) / 2 = 2 * w * w + 2 * w = 2 * w * (w + 1)
+    int median_idx = 2 * window_radius_ * (window_radius_ + 1);
+    std::vector<std::pair<float, float>> weighted_disp;
+    weighted_disp.resize((2 * window_radius_ + 1) * (2 * window_radius_ + 1));
+    for (int y = window_radius_; y < rows_ - window_radius_; ++y) {
+        for (int x = window_radius_; x < cols_ - window_radius_; ++x) {
+            if (valid_mask[y * cols_ + x]) {
                 continue;
             }
             Ip = imgL_->image_ + (y * cols_ + x) * 3;
-            std::vector<std::pair<float, float>> weighted_disp;
-            for (int dx = -window_radius_; dx <= window_radius_; ++dx) {
-                for (int dy = -window_radius_; dy <= window_radius_; ++dy) {
-                    int img_idx = ((y + dy) * cols_ + x + dx) * 3;
-                    if (!valid_mask[img_idx / 3]) {
-                        continue;
-                    }
-                    Iq = imgL_->image_ + img_idx;
-                    float weight = exp(-l1_distance(Ip, Iq) / gamma_);
-                    float disp = disp_from_plane(x + dx, y + dy, imgL_->plane_ + img_idx);
-                    weighted_disp.emplace_back(disp, weight * disp);
-                    std::sort(weighted_disp.begin(), weighted_disp.end(),
-                              [](const std::pair<float, float>& p1, const std::pair<float, float>& p2) {
-                                  return p1.second < p2.second;
-                              });
 
+            int idx = 0;
+            for (int dy = -window_radius_; dy <= window_radius_; ++dy) {
+                for (int dx = -window_radius_; dx <= window_radius_; ++dx) {
+                    int img_idx = ((y + dy) * cols_ + x + dx) * 3;
+//                    if (!valid_mask[img_idx / 3]) {
+//                        continue;
+//                    }
+                    Iq = imgL_->image_ + img_idx;
+                    weighted_disp[idx].first = disp_from_plane(x + dx, y + dy, imgL_->plane_ + img_idx);
+                    weighted_disp[idx].second = weighted_disp[idx].first * exp(-l1_distance(Ip, Iq) / gamma_);
+
+                    ++idx;
                 }
             }
+            std::nth_element(weighted_disp.begin(), weighted_disp.begin() + median_idx, weighted_disp.end(),
+                             [](const std::pair<float, float> &p1, const std::pair<float, float> &p2) {
+                                 return p1.second < p2.second;
+                             });
+            disp_l[y * cols_ + x] = weighted_disp[median_idx].first;
         }
     }
 
