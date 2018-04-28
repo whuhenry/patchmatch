@@ -5,6 +5,7 @@
 #include "PatchMatchAlg.h"
 #include <random>
 #include <boost/log/trivial.hpp>
+#include <boost/filesystem/path.hpp>
 
 using namespace cv;
 
@@ -12,11 +13,9 @@ PatchMatchAlg::PatchMatchAlg() {
     gamma_ = 10;
     alpha_ = 0.9;
     trunc_col_ = 10;
-    trunc_grad_ = 2;
-    max_dissimilarity = (1 - alpha_) * trunc_col_ + alpha_ * trunc_grad_;
+    trunc_grad_ = 2;    
     window_radius_ = 17;
     max_disparity_ = 64;
-    window_pixel_count_ = (window_radius_ * 2 + 1) * (window_radius_ * 2 + 1);
 }
 
 PatchMatchAlg::~PatchMatchAlg() {
@@ -52,6 +51,8 @@ void PatchMatchAlg::solve(std::shared_ptr<Image> imgL, std::shared_ptr<Image> im
     BOOST_LOG_TRIVIAL(info) << "start";
     imgL_ = imgL.get();
     imgR_ = imgR.get();
+    max_dissimilarity = (1 - alpha_) * trunc_col_ + alpha_ * trunc_grad_;
+    window_pixel_count_ = (window_radius_ * 2 + 1) * (window_radius_ * 2 + 1);
     assert(imgL->rows_ == imgR->rows_);
     assert(imgL->cols_ == imgR->cols_);
     rows_ = imgL_->rows_;
@@ -85,9 +86,6 @@ void PatchMatchAlg::solve(std::shared_ptr<Image> imgL, std::shared_ptr<Image> im
 
     post_process();
 
-    //show result
-    //show_result();
-    write_result();
     BOOST_LOG_TRIVIAL(info) << "finish";
 }
 
@@ -353,15 +351,14 @@ void PatchMatchAlg::post_process() {
         }
     }
 
-    cv::Mat disp_mat_unfilter = Mat::zeros(rows_, cols_, CV_8U);
+    disp_mat_unfilter_ = Mat::zeros(rows_, cols_, CV_8U);
     for (int i = 0; i < rows_; i++) {
         for (int j = 0; j < cols_; j++) {
-            disp_mat_unfilter.at<unsigned char>(i, j)
+            disp_mat_unfilter_.at<unsigned char>(i, j)
                     = (unsigned char)(disp_l[i * cols_ + j] / max_disparity_ * 255);
         }
     }
-    imwrite(R"(/home/henry/disp_lr_unfilter.bmp)", disp_mat_unfilter);
-    imshow("lr_unfilter", disp_mat_unfilter);
+    imshow("lr_unfilter", disp_mat_unfilter_);
     waitKey(0);
 
     //TODO: weighted median filter
@@ -399,29 +396,27 @@ void PatchMatchAlg::post_process() {
         }
     }
 
-    cv::Mat disp_mat = Mat::zeros(rows_, cols_, CV_8U);
+    disp_mat_ = Mat::zeros(rows_, cols_, CV_8U);
     for (int i = 0; i < rows_; i++) {
         for (int j = 0; j < cols_; j++) {
-            disp_mat.at<unsigned char>(i, j)
+            disp_mat_.at<unsigned char>(i, j)
                 = (unsigned char)(disp_l[i * cols_ + j] / max_disparity_ * 255);
         }
     }
-    imwrite(R"(/home/henry/disp_lr.bmp)", disp_mat);
-    imshow("lr", disp_mat);
+    imshow("lr", disp_mat_);
     waitKey(0);
 
-    cv::Mat mask_mat = Mat::zeros(rows_, cols_, CV_8U);
+    mask_mat_ = Mat::zeros(rows_, cols_, CV_8U);
     for (int i = 0; i < rows_; i++) {
         for (int j = 0; j < cols_; j++) {
             if (valid_mask[i * cols_ + j]) {
-                mask_mat.at<unsigned char>(i, j) = 255;
+                mask_mat_.at<unsigned char>(i, j) = 255;
             }
             else {
-                mask_mat.at<unsigned char>(i, j) = 0;
+                mask_mat_.at<unsigned char>(i, j) = 0;
             }
         }
     }
-    imwrite(R"(/home/henry/mask.bmp)", mask_mat);
 
     delete[] valid_mask;
     valid_mask = nullptr;
@@ -485,7 +480,7 @@ inline float PatchMatchAlg::l1_distance(T1* v1, T2* v2) {
     return abs(v1[0] - v2[0]) + abs(v1[1] - v2[1]) + abs(v1[2] - v2[2]);
 }
 
-void PatchMatchAlg::write_result() {
+void PatchMatchAlg::write_result(std::string dir) {
     cv::Mat disp_mat = Mat::zeros(rows_, cols_, CV_8U);
     for (int i = 0; i < rows_; i++) {
         for (int j = 0; j < cols_; j++) {
@@ -493,7 +488,9 @@ void PatchMatchAlg::write_result() {
                 = (unsigned char)(disp_from_plane(j, i, imgL_->plane_ + (i * cols_ + j) * 3) / max_disparity_ * 255);
         }
     }
-    imwrite(R"(/home/henry/disp_l.bmp)", disp_mat);
+    boost::filesystem::path p(dir);
+    boost::filesystem::path disp_l_path = p / "/disp_l.bmp";
+    imwrite(disp_l_path.string(), disp_mat);
 
     cv::Mat disp_mat_r = Mat::zeros(rows_, cols_, CV_8U);
     for (int i = 0; i < rows_; i++) {
@@ -502,7 +499,16 @@ void PatchMatchAlg::write_result() {
                 = (unsigned char)(disp_from_plane(j, i, imgR_->plane_ + (i * cols_ + j) * 3) / max_disparity_ * 255);
         }
     }
-    imwrite(R"(/home/henry/disp_r.bmp)", disp_mat_r);
+
+    boost::filesystem::path disp_r_path = p / "/disp_r.bmp";
+    imwrite(disp_r_path.string(), disp_mat_r);
+
+    boost::filesystem::path disp_lr_unfilter_path = p / "/disp_lr_unfilter.bmp";
+    imwrite(disp_lr_unfilter_path.string(), disp_mat_unfilter_);
+    boost::filesystem::path disp_lr_path = p / "/disp_lr.bmp";
+    imwrite(disp_lr_path.string(), disp_mat_);
+    boost::filesystem::path disp_mask_path = p / "/mask.bmp";
+    imwrite(disp_mask_path.string(), mask_mat_);
 }
 
 void PatchMatchAlg::show_result() {

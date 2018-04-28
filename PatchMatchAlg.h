@@ -10,16 +10,19 @@
 
 class PatchMatchAlg {
 public:
-    float gamma_, alpha_, trunc_col_, trunc_grad_, max_dissimilarity;
+    float gamma_, alpha_, trunc_col_, trunc_grad_;
     int window_radius_, max_disparity_;
     PatchMatchAlg();
     ~PatchMatchAlg();
     void solve(std::shared_ptr<Image> imgL, std::shared_ptr<Image> imgR);
     void save_disp_map(std::string path);
+    void write_result(std::string dir);
 private:
     Image *imgL_, *imgR_;
     int rows_, cols_;
     int window_pixel_count_;
+    float max_dissimilarity;
+    cv::Mat disp_mat_, disp_mat_unfilter_, mask_mat_;
     std::default_random_engine random;
     enum MatchDirection{
         L2R = 1,
@@ -43,7 +46,6 @@ private:
 
     template <class T>
     static void cpy_vec3(T *dst, T *src);
-    void write_result();
     void show_result();
 };
 
