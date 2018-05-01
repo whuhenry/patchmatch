@@ -39,14 +39,20 @@ void Image::load(std::string image_path) {
     normal_ = new float[rows_ * cols_ * 3];
     Mat float_mat;
     image_mat.convertTo(float_mat, CV_32F, 1 / 255.0f);
-    memcpy(image_, image_mat.data, rows_ * cols_ * 3 * sizeof(uint8_t));
-    memset(grad_, 0, rows_ * cols_ * 3 * sizeof(short));
+    memcpy(image_, float_mat.data, rows_ * cols_ * 3 * sizeof(float));
 
-    for (int i = 0; i < rows_ - 1; ++i) {
-        for (int j = 0; j < cols_ - 1; ++j) {
+    int rowoff = 3 * cols_, coloff = 3, center_loc = 0;
+    for (int i = 0; i < rows_; ++i) {
+        if (i == rows_ - 1) {
+            rowoff = 0;
+        }
+        for (int j = 0; j < cols_; ++j) {
+            if (j == cols_ - 1) {
+                coloff = 0;
+            }
             for (int k = 0; k < 3; ++k) {
-                int center_loc = (i * cols_ + j) * 3 + k;
-                grad_[center_loc] = image_[center_loc + 3 * cols_] + image_[center_loc + 3] - image_[center_loc] * 2;
+                grad_[center_loc] = image_[center_loc + rowoff] + image_[center_loc + coloff] - image_[center_loc] * 2;
+                ++center_loc;
             }
         }
     }

@@ -351,11 +351,11 @@ void PatchMatchAlg::post_process() {
         }
     }
 
-    disp_mat_unfilter_ = Mat::zeros(rows_, cols_, CV_32F);
+    disp_mat_unfilter_ = Mat::zeros(rows_, cols_, CV_8U);
     for (int i = 0; i < rows_; i++) {
         for (int j = 0; j < cols_; j++) {
-            disp_mat_unfilter_.at<float>(i, j)
-                    = (disp_l[i * cols_ + j] / max_disparity_);
+            disp_mat_unfilter_.at<uint8_t>(i, j)
+                    = uint8_t(disp_l[i * cols_ + j] / max_disparity_ * 255);
         }
     }
     imshow("lr_unfilter", disp_mat_unfilter_);
@@ -396,11 +396,11 @@ void PatchMatchAlg::post_process() {
         }
     }
 
-    disp_mat_ = Mat::zeros(rows_, cols_, CV_32F);
+    disp_mat_ = Mat::zeros(rows_, cols_, CV_8U);
     for (int i = 0; i < rows_; i++) {
         for (int j = 0; j < cols_; j++) {
-            disp_mat_.at<float>(i, j)
-                = disp_l[i * cols_ + j] / max_disparity_;
+            disp_mat_.at<uint8_t>(i, j)
+                = uint8_t(disp_l[i * cols_ + j] / max_disparity_ * 255);
         }
     }
     imshow("lr", disp_mat_);
