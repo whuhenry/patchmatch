@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(patchmatch)
+project(patchmatch LANGUAGES CXX CUDA)
 
 set(CMAKE_CXX_STANDARD 11)
 find_package(OpenCV REQUIRED)
@@ -16,5 +16,6 @@ if(MSVC)
   endif()
 endif()
 
-add_executable(patchmatch main.cpp Image.cpp Image.h PatchMatchAlg.cpp PatchMatchAlg.h)
+add_executable(patchmatch main.cpp Image.cpp Image.h PatchMatchAlg.cpp PatchMatchAlg.h
+               patchmatch_gpu.cu)
 target_link_libraries(patchmatch ${OpenCV_LIBS} Boost::log Boost::program_options)
