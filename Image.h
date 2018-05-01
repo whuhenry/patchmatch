@@ -74,9 +74,9 @@ public:
     }
 
     //cv::Mat image_mat_, plane_mat_, grad_mat_, cost_mat_;
-    uint8_t *image_;
-    short *grad_;
-    float *plane_, *cost_, *normal_;
+    float *image_;
+    float *plane_, *cost_, *normal_, *grad_;
+    float *d_image_, *d_plane_, *d_cost_, *d_normal_, *d_grad_;
     int rows_, cols_;
 };
 

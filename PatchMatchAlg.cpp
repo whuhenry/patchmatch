@@ -11,7 +11,7 @@ using namespace cv;
 
 PatchMatchAlg::PatchMatchAlg() {
     gamma_ = 10;
-    alpha_ = 0.9;
+    alpha_ = 0.9f;
     trunc_col_ = 10;
     trunc_grad_ = 2;    
     window_radius_ = 17;
@@ -112,7 +112,7 @@ void PatchMatchAlg::save_disp_map(std::string path) {
 
     int offset = 0;
     float disp, *normal;
-    uint8_t *diffuse;
+    float *diffuse;
     for (int i = 0; i < rows_; ++i) {
         for (int j = 0; j < cols_; ++j) {
             disp = disp_from_plane(j, i, imgL_->plane_ + offset);
@@ -212,7 +212,7 @@ void PatchMatchAlg::view_match(int iter_num) {
                 if (disp < 0.0f) {
                     disp = 0.0f;
                 } else if (disp >= max_disparity_) {
-                    disp = max_disparity_ - 1;
+                    disp = max_disparity_ - 1.0f;
                 }
                 int correspond_x = lround(x + direction * disp);
                 if (correspond_x < 0) {
@@ -253,7 +253,7 @@ void PatchMatchAlg::plane_refine(int iter_num) {
         y_inc = -1;
     }
     float *normal, plane_comp[3], delta_normal[3], new_normal[3];
-    float *plane_center, *cost_center, delta_z_max, delta_n_max, disp;
+    float *plane_center, *cost_center, delta_z_max, delta_n_max;
     for (int view = 0; view < 2; ++view) {
         Image* base_img = view % 2 == 0 ? imgL_ : imgR_;
         Image* ref_img = view % 2 == 1 ? imgL_ : imgR_;
@@ -351,18 +351,18 @@ void PatchMatchAlg::post_process() {
         }
     }
 
-    disp_mat_unfilter_ = Mat::zeros(rows_, cols_, CV_8U);
+    disp_mat_unfilter_ = Mat::zeros(rows_, cols_, CV_32F);
     for (int i = 0; i < rows_; i++) {
         for (int j = 0; j < cols_; j++) {
-            disp_mat_unfilter_.at<unsigned char>(i, j)
-                    = (unsigned char)(disp_l[i * cols_ + j] / max_disparity_ * 255);
+            disp_mat_unfilter_.at<float>(i, j)
+                    = (disp_l[i * cols_ + j] / max_disparity_);
         }
     }
     imshow("lr_unfilter", disp_mat_unfilter_);
     waitKey(0);
 
     //TODO: weighted median filter
-    uint8_t *Ip, *Iq;
+    float *Ip, *Iq;
     //(2 * w + 1) * (2 * w + 1) / 2 = 2 * w * w + 2 * w = 2 * w * (w + 1)
     int median_idx = 2 * window_radius_ * (window_radius_ + 1);
     std::vector<std::pair<float, float>> weighted_disp;
@@ -396,11 +396,11 @@ void PatchMatchAlg::post_process() {
         }
     }
 
-    disp_mat_ = Mat::zeros(rows_, cols_, CV_8U);
+    disp_mat_ = Mat::zeros(rows_, cols_, CV_32F);
     for (int i = 0; i < rows_; i++) {
         for (int j = 0; j < cols_; j++) {
-            disp_mat_.at<unsigned char>(i, j)
-                = (unsigned char)(disp_l[i * cols_ + j] / max_disparity_ * 255);
+            disp_mat_.at<float>(i, j)
+                = disp_l[i * cols_ + j] / max_disparity_;
         }
     }
     imshow("lr", disp_mat_);
@@ -437,9 +437,9 @@ float PatchMatchAlg::aggregated_cost(Image* img1, Image* img2, int y, int x, flo
     //    }
 
     float cost = 0;
-    uint8_t* Ip = img1->image_ + (y * cols_ + x) * 3;
-    uint8_t* Iq = nullptr;
-    short* Gq = nullptr;
+    float* Ip = img1->image_ + (y * cols_ + x) * 3;
+    float* Iq = nullptr;
+    float* Gq = nullptr;
     float iq_corresponding[3], gq_corresponding[3];
     for (int dy = -window_radius_; dy <= window_radius_; ++dy) {
         for (int dx = -window_radius_; dx <= window_radius_; ++dx) {
@@ -453,8 +453,8 @@ float PatchMatchAlg::aggregated_cost(Image* img1, Image* img2, int y, int x, flo
             }
             float corresponding_x = x + dx - direction * disp;
             if (0 <= corresponding_x && cols_ - 1 >= corresponding_x) {
-                img2->get_pixel_bilinear(corresponding_x, y + dy, iq_corresponding);
-                img2->get_grad_bilinear(corresponding_x, y + dy, gq_corresponding);
+                img2->get_pixel_bilinear(corresponding_x, float(y + dy), iq_corresponding);
+                img2->get_grad_bilinear(corresponding_x, float(y + dy), gq_corresponding);
                 float dissimilarity = (1 - alpha_) * min(l1_distance(Iq, iq_corresponding), trunc_col_)
                     + alpha_ * min(l1_distance(Gq, gq_corresponding), trunc_grad_);
                 cost += weight * dissimilarity;
