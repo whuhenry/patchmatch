@@ -1,6 +1,7 @@
 #include "patchmatch_gpu.h"
 
 #include <stdio.h>
+#include <time.h>
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
 #include "helper_cuda.h"
@@ -24,23 +25,24 @@ void init(Image* im, PatchMatchConfig cfg) {
     
     curandState *devStates;
     cudaError_t err = cudaMalloc(&devStates, 64 * 64 * sizeof(curandState));
-    setup_kernel<<<64, 64>>>(devStates);
+    setup_kernel<<<64, 64>>>(devStates, time(NULL));
  
     int pixel_count_per_thread = (cfg.rows * cfg.cols + 64 * 64 - 1) / (64 * 64);
     initNormalAndPlane<<<64, 64>>>(im->d_normal_, im->d_plane_, im->d_cost_, devStates, cfg, pixel_count_per_thread);
+
     checkCudaErrors(cudaFree(devStates));
 
-//    checkCudaErrors(cudaMemcpy(im->plane_, im->d_plane_, pixel_count * 3 * sizeof(float), cudaMemcpyDeviceToHost));
-//    cv::Mat disp(cfg.rows, cfg.cols, CV_8U);
-//    int offset = 0;
-//    for (int i = 0; i < cfg.rows; ++i) {
-//        for (int j = 0; j < cfg.cols; ++j) {
-//            disp.at<uint8_t>(i, j) = (uint8_t)(j * im->plane_[offset] + i * im->plane_[offset + 1] + im->plane_[offset + 2] / cfg.max_disp * 255.0f);
-//            offset += 3;
-//        }
-//    }
-//    cv::imshow("disp", disp);
-//    cv::waitKey(0);
+    checkCudaErrors(cudaMemcpy(im->plane_, im->d_plane_, pixel_count * 3 * sizeof(float), cudaMemcpyDeviceToHost));
+    //cv::Mat disp(cfg.rows, cfg.cols, CV_8U);
+    //int offset = 0;
+    //for (int i = 0; i < cfg.rows; ++i) {
+    //    for (int j = 0; j < cfg.cols; ++j) {
+    //        disp.at<uint8_t>(i, j) = (uint8_t)(j * im->plane_[offset] + i * im->plane_[offset + 1] + im->plane_[offset + 2] / cfg.max_disp * 255.0f);
+    //        offset += 3;
+    //    }
+    //}
+    //cv::imshow("disp", disp);
+    //cv::waitKey(0);
 }
 
 void solve(Image * im_left, Image * im_right, PatchMatchConfig cfg)
@@ -59,27 +61,28 @@ void solve(Image * im_left, Image * im_right, PatchMatchConfig cfg)
     for (int iter = 0; iter < 1/*cfg.iter_count*/; ++iter) {
         //left to right red
         spatialPropagation<<<grid_size, blockdim>>>(cuim_left, cuim_right, cfg, 0, 1);
+
         ////left to right black
-        spatialPropagation <<<grid_size, blockdim>>>(cuim_left, cuim_right, cfg, 1, 1);
+        //spatialPropagation <<<grid_size, blockdim>>>(cuim_left, cuim_right, cfg, 1, 1);
         ////right to left black
         //spatialPropagation <<<grid_size, blockdim>>>(im_right, im_left, cfg, 0, -1);
         ////right to left black
         //spatialPropagation <<<grid_size, blockdim>>>(im_right, im_left, cfg, 1, -1);
     }
-    //cudaDeviceSynchronize();
+    cudaDeviceSynchronize();
     checkCudaErrors(cudaMemcpy(im_left->plane_, im_left->d_plane_, 
                                cfg.rows * cfg.cols * 3 * sizeof(float), cudaMemcpyDeviceToHost));
-//    cv::Mat disp(cfg.rows, cfg.cols, CV_8U);
-//    int offset = 0;
-//    for (int i = 0; i < cfg.rows; ++i) {
-//        for (int j = 0; j < cfg.cols; ++j) {
-//            disp.at<uint8_t>(i, j) = (uint8_t)(j * im_left->plane_[offset] + i * im_left->plane_[offset + 1]
-//                                               + im_left->plane_[offset + 2] / cfg.max_disp * 255.0f);
-//            offset += 3;
-//        }
-//    }
-//    cv::imshow("disp", disp);
-//    cv::waitKey(0);
+    cv::Mat disp(cfg.rows, cfg.cols, CV_8U);
+    int offset = 0;
+    for (int i = 0; i < cfg.rows; ++i) {
+        for (int j = 0; j < cfg.cols; ++j) {
+            disp.at<uint8_t>(i, j) = (uint8_t)(j * im_left->plane_[offset] + i * im_left->plane_[offset + 1]
+                                               + im_left->plane_[offset + 2] / cfg.max_disp * 255.0f);
+            offset += 3;
+        }
+    }
+    cv::imshow("disp", disp);
+    cv::waitKey(0);
 }
 
 void cpy_host_image_to_cuimage(Image* host_im, cuImage* cu_im) {
@@ -90,10 +93,10 @@ void cpy_host_image_to_cuimage(Image* host_im, cuImage* cu_im) {
     cu_im->d_cost = host_im->d_cost_;
 }
 
-__global__ void setup_kernel(curandState* state) {
+__global__ void setup_kernel(curandState* state, unsigned long long seed) {
     int id = blockIdx.x * blockDim.x + threadIdx.x;
 
-    curand_init(0, id, 0, &state[id]);
+    curand_init(seed, id, 0, &state[id]);
 }
 
 __global__ void initNormalAndPlane(float* normal, float* plane, float* cost, curandState* globalState,
@@ -148,7 +151,7 @@ __global__ void spatialPropagation(cuImage im_base, cuImage im_ref, PatchMatchCo
     for (int i = 0; i < cfg.neighbor_lists_len; ++i) {
         int ny = y + cfg.d_neighbor_lists[i].y;
         int nx = x + cfg.d_neighbor_lists[i].x;
-        if (ny <= 0 || ny >= cfg.rows || nx <= 0 || ny >= cfg.cols) {
+        if (ny <= 0 || ny >= cfg.rows || nx <= 0 || nx >= cfg.cols) {
             continue;
         }
         float* comp_plane = &im_base.d_plane[(ny * cfg.cols + nx) * 3];

@@ -44,7 +44,7 @@ __global__ void initNormalAndPlane(float* normal, float* plane, float* cost, cur
 __global__ void spatialPropagation(cuImage im_base, cuImage im_ref,
                                    PatchMatchConfig cfg, int red_or_black, int direction);
 
-__global__ void setup_kernel(curandState* state);
+__global__ void setup_kernel(curandState* state, unsigned long long seed);
 
 __device__ float compute_cost_cu(cuImage* im_base, cuImage* im_ref, int x, int y,
                                  float* plane_used, int direction, PatchMatchConfig *cfg);
