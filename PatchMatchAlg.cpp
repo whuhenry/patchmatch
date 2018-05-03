@@ -62,14 +62,26 @@ void PatchMatchAlg::solve(std::shared_ptr<Image> imgL, std::shared_ptr<Image> im
     //random initialization
     random_init(imgL_);
     random_init(imgR_);
+    BOOST_LOG_TRIVIAL(info) << "init start";
     int pixel_idx = 0;
+    float min_cost = 100000000, max_cost = -1;
     for (int i = 0; i < rows_; ++i) {
         for (int j = 0; j < cols_; ++j) {
             imgL_->cost_[pixel_idx] = aggregated_cost(imgL_, imgR_, i, j, imgL_->plane_ + pixel_idx * 3, L2R);
             imgR_->cost_[pixel_idx] = aggregated_cost(imgR_, imgL_, i, j, imgR_->plane_ + pixel_idx * 3, R2L);
+
+            if(imgL_->cost_[pixel_idx] > max_cost) {
+                max_cost = imgL_->cost_[pixel_idx];
+            }
+            if(imgL_->cost_[pixel_idx] < min_cost) {
+                min_cost = imgL_->cost_[pixel_idx];
+            }
+
             ++pixel_idx;
         }
     }
+
+    BOOST_LOG_TRIVIAL(info) << min_cost << " " << max_cost;
     BOOST_LOG_TRIVIAL(info) << "init complete";
 
 

@@ -148,7 +148,7 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        if (use_gpu) {
+        if (!use_gpu) {
             cfg.max_cost_single = (1.0f - cfg.alpha) * cfg.density_diff_max + cfg.alpha * cfg.grad_diff_max;
             cfg.neighbor_lists_len = 20;
             cfg.h_neighbor_lists = new int2[cfg.neighbor_lists_len];

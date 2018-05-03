@@ -46,6 +46,8 @@ __global__ void spatialPropagation(cuImage im_base, cuImage im_ref,
 
 __global__ void setup_kernel(curandState* state, unsigned long long seed);
 
+__global__ void init_cost(cuImage im_base, cuImage im_ref, PatchMatchConfig cfg, int direction);
+
 __device__ float compute_cost_cu(cuImage* im_base, cuImage* im_ref, int x, int y,
                                  float* plane_used, int direction, PatchMatchConfig *cfg);
 

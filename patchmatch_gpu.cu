@@ -5,6 +5,7 @@
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
 #include "helper_cuda.h"
+#include "helper_timer.h"
 
 void init(Image* im, PatchMatchConfig cfg) {
     int pixel_count = im->rows_ * im->cols_;
@@ -58,10 +59,37 @@ void solve(Image * im_left, Image * im_right, PatchMatchConfig cfg)
     checkCudaErrors(cudaMemcpy(cfg.d_neighbor_lists, cfg.h_neighbor_lists, 
                                cfg.neighbor_lists_len * sizeof(int2), cudaMemcpyHostToDevice));
 
+
+    for (int i = 0; i < cfg.rows * cfg.cols; ++i) {
+        im_left->cost_[i] = 0.0f;
+        im_right->cost_[i] = 0.0f;
+    }
+    checkCudaErrors(cudaMemcpy(cuim_left.d_cost, im_left->cost_, cfg.rows * cfg.cols * sizeof(float), cudaMemcpyHostToDevice));
+    checkCudaErrors(cudaMemcpy(cuim_right.d_cost, im_right->cost_, cfg.rows * cfg.cols * sizeof(float), cudaMemcpyHostToDevice));
+    StopWatchInterface *timer;
+    sdkCreateTimer(&timer);
+    timer->start();
+    init_cost<<<grid_size, blockdim>>>(cuim_left, cuim_right, cfg, 1);
+    checkCudaErrors(cudaDeviceSynchronize());
+    init_cost<<<grid_size, blockdim>>>(cuim_right, cuim_left, cfg, -1);
+    
+    printf("%f\n", timer->getTime());
+    checkCudaErrors(cudaMemcpy(im_left->cost_, cuim_left.d_cost, cfg.cols * cfg.rows * sizeof(float), cudaMemcpyDeviceToHost));
+    float max_cost = -1, min_cost = 100000000000;
+    for(int i = 0; i < cfg.rows * cfg.cols; ++i) {
+        if (im_left->cost_[i] > max_cost) {
+            max_cost = im_left->cost_[i];
+        }
+        if (im_left->cost_[i] < min_cost) {
+            min_cost = im_left->cost_[i];
+        }
+    }
+    printf("%f, %f\n", min_cost, max_cost);
+
     for (int iter = 0; iter < 1/*cfg.iter_count*/; ++iter) {
         //left to right red
         spatialPropagation<<<grid_size, blockdim>>>(cuim_left, cuim_right, cfg, 0, 1);
-
+        checkCudaErrors(cudaDeviceSynchronize());
         ////left to right black
         //spatialPropagation <<<grid_size, blockdim>>>(cuim_left, cuim_right, cfg, 1, 1);
         ////right to left black
@@ -211,4 +239,15 @@ __device__ float compute_cost_cu(cuImage* im_base, cuImage* im_ref, int x, int y
         }
         return sum_cost;
     }
+}
+
+__global__ void init_cost(cuImage im_base, cuImage im_ref, PatchMatchConfig cfg, int direction) {
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    if (x >= cfg.cols || y >= cfg.rows) {
+        return;
+    }
+    int offset = y * cfg.cols + x;
+
+    im_base.d_cost[offset] = compute_cost_cu(&im_base, &im_ref, x, y, im_base.d_plane + offset * 3, direction, &cfg);
 }
