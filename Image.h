@@ -8,9 +8,10 @@
 #include <string>
 #include <random>
 #include <opencv2/opencv.hpp>
+#include "managed.h"
 
 
-class Image {
+class Image{
 public:
     Image();
     ~Image();

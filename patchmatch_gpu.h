@@ -30,14 +30,23 @@ const int BLOCK_DIM_SIZE = 32;
 void init(Image* im, PatchMatchConfig cfg);
 void solve(Image *im_left, Image *im_right, PatchMatchConfig cfg);
 
+struct cuImage {
+    float* d_image;
+    float* d_plane;
+    float* d_normal;
+    float* d_grad;
+    float* d_cost;
+};
+
+void cpy_host_image_to_cuimage(Image* host_im, cuImage* cu_im);
 __global__ void initNormalAndPlane(float* normal, float* plane, float* cost, curandState* globalState,
                                    PatchMatchConfig cfg, int pixel_per_thread);
-__global__ void spatialPropagation(Image *im_base, Image *im_ref, 
+__global__ void spatialPropagation(cuImage im_base, cuImage im_ref,
                                    PatchMatchConfig cfg, int red_or_black, int direction);
 
 __global__ void setup_kernel(curandState* state);
 
-__device__ float compute_cost_cu(Image* im_base, Image* im_ref, int x, int y, 
+__device__ float compute_cost_cu(cuImage* im_base, cuImage* im_ref, int x, int y,
                                  float* plane_used, int direction, PatchMatchConfig *cfg);
 
 __device__ inline void norm(float* v) {

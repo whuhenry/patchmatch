@@ -3,6 +3,7 @@
 //
 
 #include "Image.h"
+#include <cuda_runtime_api.h>
 
 
 using namespace cv;

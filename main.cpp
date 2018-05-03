@@ -5,6 +5,7 @@
 #include "Image.h"
 #include "PatchMatchAlg.h"
 #include "patchmatch_gpu.h"
+#include "helper_timer.h"
 
 
 using namespace cv;
@@ -191,20 +192,30 @@ int main(int argc, char* argv[]) {
             //down right 2
             cfg.h_neighbor_lists[19] = make_int2(2, 1);
 
+            StopWatchWin timer;
+
+            timer.start();
             init(imgL.get(), cfg);
-            //init(imgR.get(), cfg);
-            //solve(imgL.get(), imgR.get(), cfg);
+            std::cout << timer.getTime() << std::endl;
+            timer.reset();
+            timer.start();
+            init(imgR.get(), cfg);
+            std::cout << timer.getTime() << std::endl;
+            timer.reset();
+            timer.start();
+            solve(imgL.get(), imgR.get(), cfg);
+            std::cout << timer.getTime() << std::endl;
 
             cudaFree(imgL->d_image_);
             cudaFree(imgL->d_cost_);
             cudaFree(imgL->d_grad_);
             cudaFree(imgL->d_normal_);
             cudaFree(imgL->d_plane_);
-            //cudaFree(imgR->d_image_);
-            //cudaFree(imgR->d_cost_);
-            //cudaFree(imgR->d_grad_);
-            //cudaFree(imgR->d_normal_);
-            //cudaFree(imgR->d_plane_);
+            cudaFree(imgR->d_image_);
+            cudaFree(imgR->d_cost_);
+            cudaFree(imgR->d_grad_);
+            cudaFree(imgR->d_normal_);
+            cudaFree(imgR->d_plane_);
         } else {
             patch_match_alg.solve(imgL, imgR);
 

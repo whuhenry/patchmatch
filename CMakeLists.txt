@@ -8,5 +8,6 @@ SET(Boost_USE_STATIC_LIBS ON)
 find_package(Boost 1.56 REQUIRED COMPONENTS log program_options)
 
 add_executable(patchmatch main.cpp Image.cpp Image.h PatchMatchAlg.cpp PatchMatchAlg.h
-               patchmatch_gpu.cu patchmatch_gpu.h)
+               patchmatch_gpu.cu patchmatch_gpu.h helper_cuda.h helper_string.h helper_timer.h
+               exception.h managed.h)
 target_link_libraries(patchmatch ${OpenCV_LIBS} Boost::log Boost::program_options)
