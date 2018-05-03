@@ -6,6 +6,7 @@
 #define PATCHMATCH_PATCHMATCHALG_H
 
 #include <memory>
+#include <random>
 #include "Image.h"
 
 class PatchMatchAlg {
