@@ -6,9 +6,7 @@
 #define PATCHMATCH_IMAGE_H
 
 #include <string>
-#include <random>
 #include <opencv2/opencv.hpp>
-#include "managed.h"
 
 
 class Image{
@@ -18,9 +16,9 @@ public:
     void load(std::string);
 
     inline void get_pixel_bilinear(float x, float y, float* out_pixel){
-        auto ix = int(x);
-        auto iy = int(y);
-        auto center = (iy * cols_ + ix) * 3;
+        int ix = int(x);
+        int iy = int(y);
+        int center = (iy * cols_ + ix) * 3;
         float u = y - iy;
         float v = x - ix;
         if (iy == y && ix == x) {
@@ -44,9 +42,9 @@ public:
     }
 
     inline void get_grad_bilinear(float x, float y, float* out_pixel){
-        auto ix = int(x);
-        auto iy = int(y);
-        auto center = (iy * cols_ + ix) * 3;
+        int ix = int(x);
+        int iy = int(y);
+        int center = (iy * cols_ + ix) * 3;
         float u = y - iy;
         float v = x - ix;
         if (iy == y && ix == x) {

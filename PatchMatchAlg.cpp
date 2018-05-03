@@ -4,6 +4,7 @@
 
 #include "PatchMatchAlg.h"
 #include <random>
+#include <fstream>
 #include <boost/log/trivial.hpp>
 #include <boost/filesystem/path.hpp>
 

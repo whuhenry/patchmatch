@@ -77,9 +77,9 @@ __device__ inline void cpy_vec3(float* dst, float* src) {
 }
 
 __device__ inline void get_value_bilinear(float x, float y, PatchMatchConfig* cfg, float* in, float* out) {
-    auto ix = int(x);
-    auto iy = int(y);
-    auto center = (iy * cfg->cols + ix) * 3;
+    int ix = int(x);
+    int iy = int(y);
+    int center = (iy * cfg->cols + ix) * 3;
     float u = y - iy;
     float v = x - ix;
     if (iy == y && ix == x) {

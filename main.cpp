@@ -1,5 +1,6 @@
 #include <iostream>
 #include <memory>
+#include <fstream>
 #include <boost/program_options.hpp>
 
 #include "Image.h"
@@ -47,7 +48,7 @@ int main(int argc, char* argv[]) {
     PatchMatchConfig cfg;
     bool use_gpu = false;
     if (vm.count("prj_file")) {
-        const std::string prj_file = vm["prj_file"].as<std::string>();        
+        const std::string prj_file = vm["prj_file"].as<std::string>();
 
         std::ifstream ifs(prj_file);
         if (ifs) {
@@ -192,19 +193,20 @@ int main(int argc, char* argv[]) {
             //down right 2
             cfg.h_neighbor_lists[19] = make_int2(2, 1);
 
-            StopWatchWin timer;
+            StopWatchInterface* timer;
+            sdkCreateTimer(&timer);
 
-            timer.start();
+            timer->start();
             init(imgL.get(), cfg);
-            std::cout << timer.getTime() << std::endl;
-            timer.reset();
-            timer.start();
+            std::cout << "init left:\t" << timer->getTime() << std::endl;
+            timer->reset();
+            timer->start();
             init(imgR.get(), cfg);
-            std::cout << timer.getTime() << std::endl;
-            timer.reset();
-            timer.start();
+            std::cout << "init right:\t" << timer->getTime() << std::endl;
+            timer->reset();
+            timer->start();
             solve(imgL.get(), imgR.get(), cfg);
-            std::cout << timer.getTime() << std::endl;
+            std::cout << "slove:\t" << timer->getTime() << std::endl;
 
             cudaFree(imgL->d_image_);
             cudaFree(imgL->d_cost_);
@@ -217,16 +219,16 @@ int main(int argc, char* argv[]) {
             cudaFree(imgR->d_normal_);
             cudaFree(imgR->d_plane_);
         } else {
-            patch_match_alg.solve(imgL, imgR);
+            // patch_match_alg.solve(imgL, imgR);
 
-            if (vm.count("result_dir")) {
-                const std::string result_dir = vm["result_dir"].as<std::string>();
-                patch_match_alg.write_result(result_dir);
-            }
-            else {
-                std::cout << "there is no trunc_grad" << std::endl;
-                return 1;
-            }
+            // if (vm.count("result_dir")) {
+            //     const std::string result_dir = vm["result_dir"].as<std::string>();
+            //     patch_match_alg.write_result(result_dir);
+            // }
+            // else {
+            //     std::cout << "there is no trunc_grad" << std::endl;
+            //     return 1;
+            // }
         }
 
         

@@ -3,7 +3,6 @@
 //
 
 #include "Image.h"
-#include <cuda_runtime_api.h>
 
 
 using namespace cv;
@@ -13,19 +12,30 @@ Image::Image() {
     grad_ = nullptr;
     plane_ = nullptr;
     cost_ = nullptr;
+    normal_ = nullptr;
 }
 
 Image::~Image() {
-    delete[] image_;
-    image_ = nullptr;
-    delete[] grad_;
-    grad_ = nullptr;
-    delete[] plane_;
-    plane_ = nullptr;
-    delete[] cost_;
-    cost_ = nullptr;
-    delete[] normal_;
-    normal_ = nullptr;
+    if(nullptr != image_) {
+        delete[] image_;
+        image_ = nullptr;
+    }
+    if(nullptr != grad_) {
+        delete[] grad_;
+        grad_ = nullptr;
+    }
+    if (nullptr != plane_) {
+        delete[] plane_;
+        plane_ = nullptr;
+    }
+    if (nullptr != plane_) {
+        delete[] cost_;
+        cost_ = nullptr;
+    }
+    if (nullptr != normal_) {
+        delete[] normal_;
+        normal_ = nullptr;
+    }
 }
 
 void Image::load(std::string image_path) {

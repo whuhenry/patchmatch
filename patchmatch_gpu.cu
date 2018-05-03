@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
+#include "helper_cuda.h"
 
 void init(Image* im, PatchMatchConfig cfg) {
     int pixel_count = im->rows_ * im->cols_;
@@ -29,17 +30,17 @@ void init(Image* im, PatchMatchConfig cfg) {
     initNormalAndPlane<<<64, 64>>>(im->d_normal_, im->d_plane_, im->d_cost_, devStates, cfg, pixel_count_per_thread);
     checkCudaErrors(cudaFree(devStates));
 
-    //CUDA_CHECK(cudaMemcpy(im->plane_, im->d_plane_, pixel_count * 3 * sizeof(float), cudaMemcpyDeviceToHost));
-    //cv::Mat disp(cfg.rows, cfg.cols, CV_8U);
-    //int offset = 0;
-    //for (int i = 0; i < cfg.rows; ++i) {
-    //    for (int j = 0; j < cfg.cols; ++j) {
-    //        disp.at<uint8_t>(i, j) = (uint8_t)(j * im->plane_[offset] + i * im->plane_[offset + 1] + im->plane_[offset + 2] / cfg.max_disp * 255.0f);
-    //        offset += 3;
-    //    }
-    //}
-    //cv::imshow("disp", disp);
-    //cv::waitKey(0);
+//    checkCudaErrors(cudaMemcpy(im->plane_, im->d_plane_, pixel_count * 3 * sizeof(float), cudaMemcpyDeviceToHost));
+//    cv::Mat disp(cfg.rows, cfg.cols, CV_8U);
+//    int offset = 0;
+//    for (int i = 0; i < cfg.rows; ++i) {
+//        for (int j = 0; j < cfg.cols; ++j) {
+//            disp.at<uint8_t>(i, j) = (uint8_t)(j * im->plane_[offset] + i * im->plane_[offset + 1] + im->plane_[offset + 2] / cfg.max_disp * 255.0f);
+//            offset += 3;
+//        }
+//    }
+//    cv::imshow("disp", disp);
+//    cv::waitKey(0);
 }
 
 void solve(Image * im_left, Image * im_right, PatchMatchConfig cfg)
@@ -68,17 +69,17 @@ void solve(Image * im_left, Image * im_right, PatchMatchConfig cfg)
     //cudaDeviceSynchronize();
     checkCudaErrors(cudaMemcpy(im_left->plane_, im_left->d_plane_, 
                                cfg.rows * cfg.cols * 3 * sizeof(float), cudaMemcpyDeviceToHost));
-    cv::Mat disp(cfg.rows, cfg.cols, CV_8U);
-    int offset = 0;
-    for (int i = 0; i < cfg.rows; ++i) {
-        for (int j = 0; j < cfg.cols; ++j) {
-            disp.at<uint8_t>(i, j) = (uint8_t)(j * im_left->plane_[offset] + i * im_left->plane_[offset + 1] 
-                                               + im_left->plane_[offset + 2] / cfg.max_disp * 255.0f);
-            offset += 3;
-        }
-    }
-    cv::imshow("disp", disp);
-    cv::waitKey(0);
+//    cv::Mat disp(cfg.rows, cfg.cols, CV_8U);
+//    int offset = 0;
+//    for (int i = 0; i < cfg.rows; ++i) {
+//        for (int j = 0; j < cfg.cols; ++j) {
+//            disp.at<uint8_t>(i, j) = (uint8_t)(j * im_left->plane_[offset] + i * im_left->plane_[offset + 1]
+//                                               + im_left->plane_[offset + 2] / cfg.max_disp * 255.0f);
+//            offset += 3;
+//        }
+//    }
+//    cv::imshow("disp", disp);
+//    cv::waitKey(0);
 }
 
 void cpy_host_image_to_cuimage(Image* host_im, cuImage* cu_im) {
@@ -159,13 +160,13 @@ __global__ void spatialPropagation(cuImage im_base, cuImage im_ref, PatchMatchCo
         }
     }
 
-    if (x > 400 && y >300) {
-        float weight = im_base.d_plane[(y * cfg.cols + x) * 3] - im_base.d_plane[(y * cfg.cols + x) * 3];
-        //printf("%d, %d, %f\n", x, y, im_base.d_plane[(y * cfg.cols + x) * 3] - im_base.d_plane[(y * cfg.cols + x) * 3]);
-        im_base.d_plane[offset * 3] = 0.0f;
-        im_base.d_plane[offset * 3 + 1] = 0.0f;
-        im_base.d_plane[offset * 3 + 2] = 0.0f;
-    }
+//    if (x > 400 && y >300) {
+//        float weight = im_base.d_plane[(y * cfg.cols + x) * 3] - im_base.d_plane[(y * cfg.cols + x) * 3];
+//        //printf("%d, %d, %f\n", x, y, im_base.d_plane[(y * cfg.cols + x) * 3] - im_base.d_plane[(y * cfg.cols + x) * 3]);
+//        im_base.d_plane[offset * 3] = 0.0f;
+//        im_base.d_plane[offset * 3 + 1] = 0.0f;
+//        im_base.d_plane[offset * 3 + 2] = 0.0f;
+//    }
     
 }
 
@@ -187,22 +188,22 @@ __device__ float compute_cost_cu(cuImage* im_base, cuImage* im_ref, int x, int y
         for (int cw_y = y_st; cw_y <= y_ed; ++cw_y) {
             for (int cw_x = x_st; cw_x <= x_ed; ++cw_x) {
                 cw_offset = (cw_y * cfg->cols + cw_x) * 3;
-                weight = im_base->d_plane[center_offset] - im_base->d_plane[center_offset];
+                //weight = im_base->d_plane[center_offset] - im_base->d_plane[center_offset];
                 //float weight = abs(im_base.d_plane[center_offset] - im_base.d_plane[cw_offset]);
-                //float weight = exp(-l1_distance(&im_base.d_image[center_offset], &im_base.d_image[cw_offset]) / cfg->gamma);
-                //float disp = plane_to_disp(cw_x, cw_y, plane_used);
-                //float cor_x = cw_x - disp * direction;
-                //if (cor_x < 0 || cor_x > cfg->cols - 1) {
-                //    sum_cost += weight * cfg->max_cost_single;
-                //} else {                    
-                //    get_value_bilinear(cor_x, cw_y, cfg, im_ref.d_image, density_ref_single);
-                //    get_value_bilinear(cor_x, cw_y, cfg, im_ref.d_grad, grad_ref_single);
-                //    sum_cost += weight * (
-                //        (1 - cfg->alpha) 
-                //        * MIN(l1_distance(im_base.d_image + cw_offset, density_ref_single), cfg->density_diff_max) 
-                //        + cfg->alpha 
-                //        * MIN(l1_distance(im_base.d_grad + cw_offset, grad_ref_single), cfg->grad_diff_max));
-                //}
+                weight = exp(-l1_distance(&im_base->d_image[center_offset], &im_base->d_image[cw_offset]) / cfg->gamma);
+                disp = plane_to_disp(cw_x, cw_y, plane_used);
+                cor_x = cw_x - disp * direction;
+                if (cor_x < 0 || cor_x > cfg->cols - 1) {
+                    sum_cost += weight * cfg->max_cost_single;
+                } else {
+                    get_value_bilinear(cor_x, cw_y, cfg, im_ref->d_image, density_ref_single);
+                    get_value_bilinear(cor_x, cw_y, cfg, im_ref->d_grad, grad_ref_single);
+                    sum_cost += weight * (
+                        (1 - cfg->alpha)
+                        * MIN(l1_distance(im_base->d_image + cw_offset, density_ref_single), cfg->density_diff_max)
+                        + cfg->alpha
+                        * MIN(l1_distance(im_base->d_grad + cw_offset, grad_ref_single), cfg->grad_diff_max));
+                }
             }
         }
         return sum_cost;
