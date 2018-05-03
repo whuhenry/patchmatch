@@ -208,6 +208,9 @@ int main(int argc, char* argv[]) {
             solve(imgL.get(), imgR.get(), cfg);
             std::cout << "slove:\t" << timer->getTime() << std::endl;
 
+            cudaMemcpy(imgL->plane_, imgL->d_plane_, cfg.cols * cfg.rows * 3 * sizeof(float), cudaMemcpyDeviceToHost);
+            Image::show_disp(imgL->plane_, cfg.rows, cfg.cols, cfg.max_disp);
+
             cudaFree(imgL->d_image_);
             cudaFree(imgL->d_cost_);
             cudaFree(imgL->d_grad_);
@@ -219,16 +222,16 @@ int main(int argc, char* argv[]) {
             cudaFree(imgR->d_normal_);
             cudaFree(imgR->d_plane_);
         } else {
-            // patch_match_alg.solve(imgL, imgR);
+             patch_match_alg.solve(imgL, imgR);
 
-            // if (vm.count("result_dir")) {
-            //     const std::string result_dir = vm["result_dir"].as<std::string>();
-            //     patch_match_alg.write_result(result_dir);
-            // }
-            // else {
-            //     std::cout << "there is no trunc_grad" << std::endl;
-            //     return 1;
-            // }
+             if (vm.count("result_dir")) {
+                 const std::string result_dir = vm["result_dir"].as<std::string>();
+                 patch_match_alg.write_result(result_dir);
+             }
+             else {
+                 std::cout << "there is no trunc_grad" << std::endl;
+                 return 1;
+             }
         }
 
         

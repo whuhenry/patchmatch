@@ -68,3 +68,17 @@ void Image::load(std::string image_path) {
         }
     }
 }
+
+void Image::show_disp(float *plane, int row, int col, int max_disp) {
+    cv::Mat disp_mat = Mat::zeros(row, col, CV_8U);
+    int offset = 0;
+    for (int y = 0; y < row; y++) {
+        for (int x = 0; x < col; x++) {
+            disp_mat.at<unsigned char>(y, x)
+                    = (unsigned char) ((x * plane[offset] + y * plane[offset + 1] + plane[offset + 2]) / max_disp *
+                                       255);
+        }
+    }
+    imshow("disp", disp_mat);
+    waitKey(0);
+}

@@ -72,6 +72,8 @@ public:
         plane[2] = (normal[0] * x + normal[1] * y + normal[2] * z) / normal[2];
     }
 
+    static void show_disp(float* plane, int row, int col, int max_disp);
+
     //cv::Mat image_mat_, plane_mat_, grad_mat_, cost_mat_;
     float *image_;
     float *plane_, *cost_, *normal_, *grad_;

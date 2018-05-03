@@ -8,8 +8,10 @@ find_package(Boost 1.56 REQUIRED COMPONENTS log program_options)
 
 find_package(CUDA REQUIRED)
 
-LIST(APPEND CUDA_NVCC_FLAGS -gencode arch=compute_30,code=sm_30) 
-LIST(APPEND CUDA_NVCC_FLAGS "-Xcompiler \"/wd 4819\"")
+LIST(APPEND CUDA_NVCC_FLAGS -gencode arch=compute_30,code=sm_30)
+if (MSVC)
+    LIST(APPEND CUDA_NVCC_FLAGS "-Xcompiler \"/wd 4819\"")
+endif ()
 
 cuda_add_executable(patchmatch Image.cpp Image.h PatchMatchAlg.cpp PatchMatchAlg.h
                patchmatch_gpu.cu patchmatch_gpu.h helper_cuda.h helper_string.h helper_timer.h
