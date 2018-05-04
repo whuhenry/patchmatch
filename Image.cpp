@@ -77,6 +77,7 @@ void Image::show_disp(float *plane, int row, int col, int max_disp) {
             disp_mat.at<unsigned char>(y, x)
                     = (unsigned char) ((x * plane[offset] + y * plane[offset + 1] + plane[offset + 2]) / max_disp *
                                        255);
+            offset += 3;
         }
     }
     imshow("disp", disp_mat);

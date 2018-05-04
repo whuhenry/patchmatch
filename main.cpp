@@ -7,6 +7,7 @@
 #include "PatchMatchAlg.h"
 #include "patchmatch_gpu.h"
 #include "helper_timer.h"
+#include "helper_cuda.h"
 
 
 using namespace cv;
@@ -148,7 +149,7 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        if (!use_gpu) {
+        if (use_gpu) {
             cfg.max_cost_single = (1.0f - cfg.alpha) * cfg.density_diff_max + cfg.alpha * cfg.grad_diff_max;
             cfg.neighbor_lists_len = 20;
             cfg.h_neighbor_lists = new int2[cfg.neighbor_lists_len];
@@ -175,7 +176,7 @@ int main(int argc, char* argv[]) {
             //right + 3
             cfg.h_neighbor_lists[10] = make_int2(3, 0);
             //right + 5
-            cfg.h_neighbor_lists[11] = make_int2(3, 0);
+            cfg.h_neighbor_lists[11] = make_int2(5, 0);
             //up left 1
             cfg.h_neighbor_lists[12] = make_int2(-1, -2);
             //up left 2
@@ -192,6 +193,10 @@ int main(int argc, char* argv[]) {
             cfg.h_neighbor_lists[18] = make_int2(1, 2);
             //down right 2
             cfg.h_neighbor_lists[19] = make_int2(2, 1);
+
+            int devNum = 0;
+            cudaGetDevice(&devNum);
+            cudaSetDevice(devNum);
 
             StopWatchInterface* timer;
             sdkCreateTimer(&timer);

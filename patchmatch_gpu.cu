@@ -33,7 +33,7 @@ void init(Image* im, PatchMatchConfig cfg) {
 
     checkCudaErrors(cudaFree(devStates));
 
-    checkCudaErrors(cudaMemcpy(im->plane_, im->d_plane_, pixel_count * 3 * sizeof(float), cudaMemcpyDeviceToHost));
+    //checkCudaErrors(cudaMemcpy(im->plane_, im->d_plane_, pixel_count * 3 * sizeof(float), cudaMemcpyDeviceToHost));
     //cv::Mat disp(cfg.rows, cfg.cols, CV_8U);
     //int offset = 0;
     //for (int i = 0; i < cfg.rows; ++i) {
@@ -72,9 +72,8 @@ void solve(Image * im_left, Image * im_right, PatchMatchConfig cfg)
     init_cost<<<grid_size, blockdim>>>(cuim_left, cuim_right, cfg, 1);
     checkCudaErrors(cudaDeviceSynchronize());
     init_cost<<<grid_size, blockdim>>>(cuim_right, cuim_left, cfg, -1);
-    
-    printf("%f\n", timer->getTime());
     checkCudaErrors(cudaMemcpy(im_left->cost_, cuim_left.d_cost, cfg.cols * cfg.rows * sizeof(float), cudaMemcpyDeviceToHost));
+    printf("%f\n", timer->getTime());
     float max_cost = -1, min_cost = 100000000000;
     for(int i = 0; i < cfg.rows * cfg.cols; ++i) {
         if (im_left->cost_[i] > max_cost) {
@@ -86,10 +85,23 @@ void solve(Image * im_left, Image * im_right, PatchMatchConfig cfg)
     }
     printf("%f, %f\n", min_cost, max_cost);
 
+    void** args = new void*[5];
+    int red = 0; int direction = 1;
+    args[0] = &cuim_left;
+    args[1] = &cuim_right;
+    args[2] = &cfg;
+    args[3] = &red;
+    args[4] = &direction;
+
+
     for (int iter = 0; iter < 1/*cfg.iter_count*/; ++iter) {
         //left to right red
-        spatialPropagation<<<grid_size, blockdim>>>(cuim_left, cuim_right, cfg, 0, 1);
+        checkCudaErrors(cudaLaunchKernel(spatialPropagation, grid_size, blockdim, args, 0, NULL));
         checkCudaErrors(cudaDeviceSynchronize());
+        //spatialPropagation<<<grid_size, blockdim>>>(cuim_left, cuim_right, cfg, 0, 1);
+        
+        //init_cost << <grid_size, blockdim >> >(cuim_right, cuim_left, cfg, -1);
+        
         ////left to right black
         //spatialPropagation <<<grid_size, blockdim>>>(cuim_left, cuim_right, cfg, 1, 1);
         ////right to left black
@@ -97,20 +109,20 @@ void solve(Image * im_left, Image * im_right, PatchMatchConfig cfg)
         ////right to left black
         //spatialPropagation <<<grid_size, blockdim>>>(im_right, im_left, cfg, 1, -1);
     }
-    cudaDeviceSynchronize();
+    //cudaDeviceSynchronize();
     checkCudaErrors(cudaMemcpy(im_left->plane_, im_left->d_plane_, 
                                cfg.rows * cfg.cols * 3 * sizeof(float), cudaMemcpyDeviceToHost));
-    cv::Mat disp(cfg.rows, cfg.cols, CV_8U);
-    int offset = 0;
-    for (int i = 0; i < cfg.rows; ++i) {
-        for (int j = 0; j < cfg.cols; ++j) {
-            disp.at<uint8_t>(i, j) = (uint8_t)(j * im_left->plane_[offset] + i * im_left->plane_[offset + 1]
-                                               + im_left->plane_[offset + 2] / cfg.max_disp * 255.0f);
-            offset += 3;
-        }
-    }
-    cv::imshow("disp", disp);
-    cv::waitKey(0);
+    //cv::Mat disp(cfg.rows, cfg.cols, CV_8U);
+    //int offset = 0;
+    //for (int i = 0; i < cfg.rows; ++i) {
+    //    for (int j = 0; j < cfg.cols; ++j) {
+    //        disp.at<uint8_t>(i, j) = (uint8_t)(j * im_left->plane_[offset] + i * im_left->plane_[offset + 1]
+    //                                           + im_left->plane_[offset + 2] / cfg.max_disp * 255.0f);
+    //        offset += 3;
+    //    }
+    //}
+    //cv::imshow("disp", disp);
+    //cv::waitKey(0);
 }
 
 void cpy_host_image_to_cuimage(Image* host_im, cuImage* cu_im) {
@@ -176,14 +188,15 @@ __global__ void spatialPropagation(cuImage im_base, cuImage im_ref, PatchMatchCo
 
     float* center_plane = &im_base.d_plane[offset * 3];
     float* max_cost = &im_base.d_cost[offset];
+    float* comp_plane, cost;
     for (int i = 0; i < cfg.neighbor_lists_len; ++i) {
         int ny = y + cfg.d_neighbor_lists[i].y;
         int nx = x + cfg.d_neighbor_lists[i].x;
         if (ny <= 0 || ny >= cfg.rows || nx <= 0 || nx >= cfg.cols) {
             continue;
         }
-        float* comp_plane = &im_base.d_plane[(ny * cfg.cols + nx) * 3];
-        float cost = compute_cost_cu(&im_base, &im_ref, x, y, comp_plane, direction, &cfg);
+        comp_plane = &im_base.d_plane[(ny * cfg.cols + nx) * 3];
+        cost = compute_cost_cu(&im_base, &im_ref, x, y, comp_plane, direction, &cfg);
         
         if (cost < max_cost[0]) {
             max_cost[0] = cost;
@@ -250,4 +263,60 @@ __global__ void init_cost(cuImage im_base, cuImage im_ref, PatchMatchConfig cfg,
     int offset = y * cfg.cols + x;
 
     im_base.d_cost[offset] = compute_cost_cu(&im_base, &im_ref, x, y, im_base.d_plane + offset * 3, direction, &cfg);
+}
+
+__device__ void norm(float* v) {
+    float l2_normal = sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+    v[0] /= l2_normal;
+    v[1] /= l2_normal;
+    v[2] /= l2_normal;
+}
+
+__device__ float l1_distance(float *v1, float *v2) {
+    return abs(v1[0] - v2[0]) + abs(v1[1] - v2[1]) + abs(v1[2] - v2[2]);
+}
+
+__device__ void normal_to_plane(int x, int y, float z, float* normal, float *plane) {
+    plane[0] = -normal[0] / normal[2];
+    plane[1] = -normal[1] / normal[2];
+    plane[2] = (normal[0] * x + normal[1] * y + normal[2] * z) / normal[2];
+}
+
+__device__ float plane_to_disp(int x, int y, float* plane_single) {
+    return x * plane_single[0] + y * plane_single[1] + plane_single[2];
+}
+
+__device__ void cpy_vec3(float* dst, float* src) {
+    dst[0] = src[0];
+    dst[1] = src[1];
+    dst[2] = src[2];
+}
+
+__device__ void get_value_bilinear(float x, float y, PatchMatchConfig* cfg, float* in, float* out) {
+    int ix = int(x);
+    int iy = int(y);
+    int center = (iy * cfg->cols + ix) * 3;
+    float u = y - iy;
+    float v = x - ix;
+    if (iy == y && ix == x) {
+        for (int i = 0; i < 3; i++) {
+            out[i] = in[center + i];
+        }
+    }
+    else if (iy == y && ix != x) {
+        for (int i = 0; i < 3; i++) {
+            out[i] = (1 - v) * in[center + i] + v * in[center + i + 3];
+        }
+    }
+    else if (iy != y && ix == x) {
+        for (int i = 0; i < 3; i++) {
+            out[i] = (1 - u) * in[center + i] + u * in[center + i + 3 * cfg->cols];
+        }
+    }
+    else {
+        for (int i = 0; i < 3; i++) {
+            out[i] = (1 - u) * (1 - v) * in[center + i] + (1 - u) * v * in[center + i + 3]
+                + u * (1 - v) * in[center + i + 3 * cfg->cols] + u * v * in[center + i + 3 * cfg->cols + 3];
+        }
+    }
 }
